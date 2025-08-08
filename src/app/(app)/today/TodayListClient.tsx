@@ -77,6 +77,9 @@ function Row({
 export default function TodayListClient({ initial }: { initial: Today[] }) {
   const [items, setItems] = useState(initial);
   useEffect(() => setItems(initial), [initial]);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [descriptionText, setDescriptionText] = useState("");
 
   async function onStart(issueKey: string) {
     const body = new FormData();
@@ -102,6 +105,30 @@ export default function TodayListClient({ initial }: { initial: Today[] }) {
     });
     if (!res.ok) return toast.error("Remove failed");
     setItems((prev) => prev.filter((p) => p.issueKey !== issueKey));
+  }
+
+  async function addComment(issueKey: string) {
+    if (!commentText.trim()) return;
+    const res = await fetch(`/api/jira/issue/${issueKey}/comment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: commentText }),
+    });
+    if (!res.ok) return toast.error("Comment failed");
+    toast.success("Comment added");
+    setCommentText("");
+  }
+
+  async function updateDescription(issueKey: string) {
+    if (!descriptionText.trim()) return;
+    const res = await fetch(`/api/jira/issue/${issueKey}/description`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: descriptionText }),
+    });
+    if (!res.ok) return toast.error("Update failed");
+    toast.success("Description updated");
+    setDescriptionText("");
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -134,13 +161,72 @@ export default function TodayListClient({ initial }: { initial: Today[] }) {
             </div>
           )}
           {items.map((i) => (
-            <Row
-              key={i.issueKey}
-              item={i}
-              onStart={onStart}
-              onStop={onStop}
-              onRemove={onRemove}
-            />
+            <div key={i.issueKey} className="space-y-2">
+              <Row
+                item={i}
+                onStart={onStart}
+                onStop={onStop}
+                onRemove={onRemove}
+              />
+              <div className="flex items-center gap-2 pl-10">
+                <button
+                  onClick={() => {
+                    if (editingKey === i.issueKey) {
+                      setEditingKey(null);
+                      setCommentText("");
+                      setDescriptionText("");
+                    } else {
+                      setEditingKey(i.issueKey);
+                      setCommentText("");
+                      setDescriptionText("");
+                    }
+                  }}
+                  className="rounded border px-2 py-1 text-xs"
+                >
+                  {editingKey === i.issueKey ? "Close" : "Edit"}
+                </button>
+              </div>
+              {editingKey === i.issueKey && (
+                <div className="ml-10 rounded border p-3">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <div className="mb-1 text-xs font-medium opacity-70">
+                        Add comment
+                      </div>
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        className="h-24 w-full rounded border p-2 text-sm"
+                        placeholder="Write a quick comment..."
+                      />
+                      <button
+                        onClick={() => addComment(i.issueKey)}
+                        className="mt-2 rounded bg-blue-600 px-2 py-1 text-xs text-white"
+                      >
+                        Post comment
+                      </button>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-xs font-medium opacity-70">
+                        Update description
+                      </div>
+                      <textarea
+                        value={descriptionText}
+                        onChange={(e) => setDescriptionText(e.target.value)}
+                        className="h-24 w-full rounded border p-2 text-sm"
+                        placeholder="New description..."
+                      />
+                      <button
+                        onClick={() => updateDescription(i.issueKey)}
+                        className="mt-2 rounded bg-green-600 px-2 py-1 text-xs text-white"
+                      >
+                        Save description
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </SortableContext>
