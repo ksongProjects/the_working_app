@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+const ScheduleBlocksClient = dynamic(() => import("./ScheduleBlocksClient"), {
+  ssr: false,
+});
 
 type Item = { id: string; title: string; start?: string; end?: string };
 
@@ -90,6 +94,9 @@ export default function SchedulePage() {
           </div>
         </div>
       </div>
+
+      <h2 className="mt-8 text-lg font-semibold">Planned blocks</h2>
+      <ScheduleBlocksClient dateISO={dateISO} />
     </div>
   );
 }
