@@ -2,7 +2,12 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { auth } from "@/auth/config";
 import dynamic from "next/dynamic";
-const AddIssuesClient = dynamic(() => import("./AddIssuesClient"), { ssr: false });
+const AddIssuesClient = dynamic(() => import("./AddIssuesClient"), {
+  ssr: false,
+});
+const TodayListClient = dynamic(() => import("./TodayListClient"), {
+  ssr: false,
+});
 
 async function getTodayIssues(userId: string) {
   const issues = await prisma.todayIssue.findMany({
@@ -38,40 +43,7 @@ export default async function TodayPage() {
         <AddIssuesClient />
       </div>
 
-      <div className="mt-6 space-y-2">
-        {issues.length === 0 && (
-          <div className="rounded border p-4 text-sm opacity-75">
-            No issues yet.
-          </div>
-        )}
-        {issues.map((i) => (
-          <div
-            key={i.id}
-            className="flex items-center justify-between rounded border p-3"
-          >
-            <div className="truncate">
-              <div className="font-medium">{i.issueKey}</div>
-              {i.notes && <div className="text-xs opacity-70">{i.notes}</div>}
-            </div>
-            <div className="flex items-center gap-2">
-              <form action={`/api/time/start`} method="post">
-                <input type="hidden" name="sourceType" value="jira" />
-                <input type="hidden" name="sourceId" value={i.issueKey} />
-                <button className="rounded border px-2 py-1 text-xs">
-                  Start
-                </button>
-              </form>
-              <form action={`/api/time/stop`} method="post">
-                <input type="hidden" name="sourceType" value="jira" />
-                <input type="hidden" name="sourceId" value={i.issueKey} />
-                <button className="rounded border px-2 py-1 text-xs">
-                  Stop
-                </button>
-              </form>
-            </div>
-          </div>
-        ))}
-      </div>
+      <TodayListClient initial={issues} />
     </div>
   );
 }

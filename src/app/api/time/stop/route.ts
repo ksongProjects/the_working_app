@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth/config';
+import { addWorklog } from '@/server/atlassian/worklog';
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
     where: { id: openEntry.id },
     data: { endedAt: new Date() },
   });
+  // Optional: push worklog if configured
+  try {
+    const settings = await prisma.settings.findUnique({ where: { userId: session.user.id } });
+    if (settings?.autoPushWorklog && sourceType === 'jira' && sourceId && updated.endedAt) {
+      const comment = settings.defaultWorklogCommentTemplate ?? undefined;
+      await addWorklog({ userId: session.user.id, issueKey: sourceId, started: updated.startedAt, ended: updated.endedAt, comment });
+      await prisma.timeEntry.update({ where: { id: updated.id }, data: { pushedToJiraWorklogAt: new Date() } });
+    }
+  } catch (e) {
+    // swallow to not block stop action
+  }
   return NextResponse.json({ ok: true, id: updated.id });
 }
 

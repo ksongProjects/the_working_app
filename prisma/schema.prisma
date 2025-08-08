@@ -156,6 +156,7 @@ model Settings {
   workdayStart DateTime?
   workdayEnd   DateTime?
   defaultWorklogCommentTemplate String?
+  autoPushWorklog Boolean @default(false)
   timezone  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
