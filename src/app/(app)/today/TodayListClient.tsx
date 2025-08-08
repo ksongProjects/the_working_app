@@ -63,6 +63,13 @@ function Row({
         >
           Stop
         </button>
+        <form action={`/api/time/stop-and-worklog`} method="post">
+          <input type="hidden" name="sourceType" value="jira" />
+          <input type="hidden" name="sourceId" value={item.issueKey} />
+          <button className="rounded border px-2 py-1 text-xs">
+            Stop + Worklog
+          </button>
+        </form>
         <button
           onClick={() => onRemove(item.issueKey)}
           className="rounded border px-2 py-1 text-xs text-red-600"
