@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { auth } from "@/auth/config";
+import dynamic from "next/dynamic";
+const AddIssuesClient = dynamic(() => import("./AddIssuesClient"), { ssr: false });
 
 async function getTodayIssues(userId: string) {
   const issues = await prisma.todayIssue.findMany({
@@ -32,7 +34,11 @@ export default async function TodayPage() {
       <h1 className="text-xl font-semibold">Today</h1>
       <p className="mt-1 text-sm opacity-80">Your selected Jira issues</p>
 
-      <div className="mt-4 space-y-2">
+      <div className="mt-4">
+        <AddIssuesClient />
+      </div>
+
+      <div className="mt-6 space-y-2">
         {issues.length === 0 && (
           <div className="rounded border p-4 text-sm opacity-75">
             No issues yet.
