@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth/config';
 import { createGoogleEvent, updateGoogleEvent } from '@/server/google/calendar';
+import { createOutlookEvent, updateOutlookEvent } from '@/server/microsoft/calendar';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
 
   if (action === 'create') {
     const { title, start, end, sourceType, sourceId, mirrorTo } = body as {
-      title: string; start: string; end: string; sourceType?: string; sourceId?: string | null; mirrorTo?: 'google' | null;
+      title: string; start: string; end: string; sourceType?: string; sourceId?: string | null; mirrorTo?: 'google' | 'microsoft' | null;
     };
     const row = await prisma.scheduleBlock.create({
       data: { userId: session.user.id, title, start: new Date(start), end: new Date(end), sourceType: sourceType || 'custom', sourceId: sourceId || undefined },
@@ -35,6 +36,12 @@ export async function POST(request: Request) {
       try {
         const created = await createGoogleEvent({ userId: session.user.id, title, startISO: start, endISO: end });
         await prisma.scheduleBlock.update({ where: { id: row.id }, data: { provider: 'google', providerEventId: created.id } });
+      } catch {}
+    }
+    if (mirrorTo === 'microsoft') {
+      try {
+        const created = await createOutlookEvent({ userId: session.user.id, title, startISO: start, endISO: end });
+        await prisma.scheduleBlock.update({ where: { id: row.id }, data: { provider: 'microsoft', providerEventId: created.id } });
       } catch {}
     }
     return NextResponse.json(row);
@@ -48,6 +55,11 @@ export async function POST(request: Request) {
     if (row.provider === 'google' && row.providerEventId) {
       try {
         await updateGoogleEvent({ userId: session.user.id, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
+      } catch {}
+    }
+    if (row.provider === 'microsoft' && row.providerEventId) {
+      try {
+        await updateOutlookEvent({ userId: session.user.id, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
       } catch {}
     }
     return NextResponse.json(row);

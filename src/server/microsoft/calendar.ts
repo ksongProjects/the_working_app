@@ -25,4 +25,45 @@ export async function listOutlookEventsForDay(userId: string, dateISO: string) {
   return (data.value ?? []) as MsEvent[];
 }
 
+export async function createOutlookEvent(params: { userId: string; title: string; startISO: string; endISO: string }) {
+  const { userId, title, startISO, endISO } = params;
+  const account = await prisma.connectedAccount.findUnique({
+    where: { userId_provider: { userId, provider: 'microsoft' } },
+    select: { accessToken: true },
+  });
+  if (!account?.accessToken) throw new Error('No Microsoft account linked');
+  const res = await fetch('https://graph.microsoft.com/v1.0/me/events', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${account.accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      subject: title,
+      start: { dateTime: startISO, timeZone: 'UTC' },
+      end: { dateTime: endISO, timeZone: 'UTC' },
+    }),
+  });
+  if (!res.ok) throw new Error(`Outlook create event failed: ${res.status}`);
+  const data = await res.json();
+  return { id: data.id as string };
+}
+
+export async function updateOutlookEvent(params: { userId: string; eventId: string; title?: string; startISO?: string; endISO?: string }) {
+  const { userId, eventId, title, startISO, endISO } = params;
+  const account = await prisma.connectedAccount.findUnique({
+    where: { userId_provider: { userId, provider: 'microsoft' } },
+    select: { accessToken: true },
+  });
+  if (!account?.accessToken) throw new Error('No Microsoft account linked');
+  const patch: any = {};
+  if (title) patch.subject = title;
+  if (startISO) patch.start = { dateTime: startISO, timeZone: 'UTC' };
+  if (endISO) patch.end = { dateTime: endISO, timeZone: 'UTC' };
+  const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${eventId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${account.accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`Outlook update event failed: ${res.status}`);
+  return { ok: true };
+}
+
 

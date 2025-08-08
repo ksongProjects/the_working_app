@@ -11,7 +11,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
   const [title, setTitle] = useState("");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
-  const [mirrorToGoogle, setMirrorToGoogle] = useState(false);
+  const [mirror, setMirror] = useState<"none" | "google" | "microsoft">("none");
 
   async function load() {
     setLoading(true);
@@ -51,7 +51,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
         title,
         start: startISO,
         end: endISO,
-        mirrorTo: mirrorToGoogle ? "google" : null,
+        mirrorTo: mirror === "none" ? null : mirror,
       }),
     });
     if (!res.ok) return toast.error("Create failed");
@@ -114,14 +114,16 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
             ))}
           </select>
         </div>
-        <label className="mb-1 flex items-center gap-2 text-xs opacity-80">
-          <input
-            type="checkbox"
-            checked={mirrorToGoogle}
-            onChange={(e) => setMirrorToGoogle(e.target.checked)}
-          />
-          Mirror to Google calendar
-        </label>
+        <div className="mb-1 text-xs opacity-80">Mirror to calendar</div>
+        <select
+          value={mirror}
+          onChange={(e) => setMirror(e.target.value as any)}
+          className="rounded border px-2 py-1 text-sm"
+        >
+          <option value="none">None</option>
+          <option value="google">Google</option>
+          <option value="microsoft">Microsoft</option>
+        </select>
         <button
           onClick={create}
           className="rounded bg-blue-600 px-3 py-1 text-sm text-white"
