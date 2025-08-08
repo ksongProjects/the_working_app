@@ -1,6 +1,16 @@
+"use client";
 import Image from "next/image";
+import { Dialog } from "@base-ui-components/react/dialog";
+import { toast } from "sonner";
+import { useCallback, useState } from "react";
 
 export default function Home() {
+  const [open, setOpen] = useState(false);
+  const showToast = useCallback(() => {
+    toast.success("Your scaffold is ready.", {
+      description: "Hello from Sonner",
+    });
+  }, []);
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
@@ -50,6 +60,46 @@ export default function Home() {
             Read our docs
           </a>
         </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={showToast}
+            className="rounded-md bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
+          >
+            Show toast
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="rounded-md border px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-900"
+          >
+            Open dialog
+          </button>
+        </div>
+
+        <Dialog.Root open={open} onOpenChange={setOpen}>
+          <Dialog.Trigger style={{ display: "none" }} />
+          <Dialog.Portal>
+            <div
+              className="fixed inset-0 z-40 bg-black/40"
+              onClick={() => setOpen(false)}
+            />
+            <div className="fixed inset-0 z-50 grid place-items-center p-4">
+              <Dialog.Popup className="w-full max-w-md rounded-lg bg-white p-4 shadow-lg outline-none dark:bg-neutral-900 dark:text-white">
+                <Dialog.Title className="text-lg font-semibold">
+                  Base UI Dialog
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm opacity-80">
+                  This dialog is rendered with Base UI primitives.
+                </Dialog.Description>
+                <div className="mt-4 flex justify-end gap-2">
+                  <Dialog.Close className="rounded-md border px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                    Close
+                  </Dialog.Close>
+                </div>
+              </Dialog.Popup>
+            </div>
+          </Dialog.Portal>
+        </Dialog.Root>
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a

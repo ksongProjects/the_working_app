@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts         ConnectedAccount[]
+  todayIssues      TodayIssue[]
+  scheduleBlocks   ScheduleBlock[]
+  timeEntries      TimeEntry[]
+  settings         Settings?
+  jiraIssueCaches  JiraIssueCache[]
+}
+
+model ConnectedAccount {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  provider     String
+  accountId    String
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  scopes       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, provider])
+}
+
+model JiraIssueCache {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  issueKey   String
+  summary    String
+  status     String
+  assignee   String?
+  projectKey String?
+  updatedAt  DateTime @default(now())
+
+  @@unique([userId, issueKey])
+}
+
+model TodayIssue {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  issueKey   String
+  orderIndex Int
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, issueKey])
+  @@index([userId, orderIndex])
+}
+
+model ScheduleBlock {
+  id              String   @id @default(cuid())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  sourceType      String
+  sourceId        String?
+  title           String
+  start           DateTime
+  end             DateTime
+  provider        String?
+  providerEventId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, start])
+}
+
+model TimeEntry {
+  id                     String   @id @default(cuid())
+  user                   User     @relation(fields: [userId], references: [id])
+  userId                 String
+  sourceType             String
+  sourceId               String?
+  startedAt              DateTime
+  endedAt                DateTime?
+  note                   String?
+  pushedToJiraWorklogAt  DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId, startedAt])
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @unique
+  workdayStart DateTime?
+  workdayEnd   DateTime?
+  defaultWorklogCommentTemplate String?
+  timezone  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
