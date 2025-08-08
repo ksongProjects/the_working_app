@@ -14,7 +14,24 @@ async function getTodayIssues(userId: string) {
     where: { userId },
     orderBy: { orderIndex: "asc" },
   });
-  return issues;
+
+  // Attach lastPushedAt per issue from recent TimeEntry
+  const withPush = await Promise.all(
+    issues.map(async (i) => {
+      const last = await prisma.timeEntry.findFirst({
+        where: {
+          userId,
+          sourceType: "jira",
+          sourceId: i.issueKey,
+          pushedToJiraWorklogAt: { not: null },
+        },
+        orderBy: { pushedToJiraWorklogAt: "desc" },
+        select: { pushedToJiraWorklogAt: true },
+      });
+      return { ...i, lastPushedAt: last?.pushedToJiraWorklogAt ?? null } as any;
+    })
+  );
+  return withPush;
 }
 
 export default async function TodayPage() {
@@ -43,7 +60,7 @@ export default async function TodayPage() {
         <AddIssuesClient />
       </div>
 
-      <TodayListClient initial={issues} />
+      <TodayListClient initial={issues as any} />
     </div>
   );
 }

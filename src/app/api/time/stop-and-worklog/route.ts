@@ -27,13 +27,16 @@ export async function POST(request: Request) {
     const effectiveComment = comment || (await prisma.settings.findUnique({ where: { userId: session.user.id } }))?.defaultWorklogCommentTemplate || undefined;
     try {
       await addWorklog({ userId: session.user.id, issueKey: sourceId, started: updated.startedAt, ended: updated.endedAt, comment: effectiveComment });
-      await prisma.timeEntry.update({ where: { id: updated.id }, data: { pushedToJiraWorklogAt: new Date() } });
-    } catch (e) {
-      return NextResponse.json({ ok: true, id: updated.id, worklog: 'failed' });
+      const pushedAt = new Date();
+      await prisma.timeEntry.update({ where: { id: updated.id }, data: { pushedToJiraWorklogAt: pushedAt } });
+      return NextResponse.json({ ok: true, id: updated.id, worklog: 'pushed', pushedAt: pushedAt.toISOString() });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      return NextResponse.json({ ok: true, id: updated.id, worklog: 'failed', message });
     }
   }
 
-  return NextResponse.json({ ok: true, id: updated.id });
+  return NextResponse.json({ ok: true, id: updated.id, worklog: 'skipped' });
 }
 
 

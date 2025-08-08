@@ -8,21 +8,28 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type Today = { id: string; issueKey: string; notes: string | null };
+type Today = {
+  id: string;
+  issueKey: string;
+  notes: string | null;
+  lastPushedAt?: string | null;
+};
 
 function Row({
   item,
   onStart,
   onStop,
   onRemove,
+  onPreviewWorklog,
 }: {
   item: Today;
   onStart: (k: string) => void;
   onStop: (k: string) => void;
   onRemove: (k: string) => void;
+  onPreviewWorklog: (k: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.issueKey });
@@ -48,6 +55,11 @@ function Row({
         <div className="truncate">
           <div className="font-medium">{item.issueKey}</div>
           {item.notes && <div className="text-xs opacity-70">{item.notes}</div>}
+          {item.lastPushedAt && (
+            <div className="text-[11px] opacity-60">
+              Last pushed: {new Date(item.lastPushedAt).toLocaleString()}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -62,6 +74,12 @@ function Row({
           className="rounded border px-2 py-1 text-xs"
         >
           Stop
+        </button>
+        <button
+          onClick={() => onPreviewWorklog(item.issueKey)}
+          className="rounded border px-2 py-1 text-xs"
+        >
+          Preview Worklog
         </button>
         <form action={`/api/time/stop-and-worklog`} method="post">
           <input type="hidden" name="sourceType" value="jira" />
@@ -87,6 +105,15 @@ export default function TodayListClient({ initial }: { initial: Today[] }) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [descriptionText, setDescriptionText] = useState("");
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
+  const [previewComment, setPreviewComment] = useState<string>("");
+  const [previewOpenStartedAt, setPreviewOpenStartedAt] = useState<Date | null>(
+    null
+  );
+  const previewIssue = useMemo(
+    () => items.find((i) => i.issueKey === previewKey) || null,
+    [items, previewKey]
+  );
 
   async function onStart(issueKey: string) {
     const body = new FormData();
@@ -112,6 +139,61 @@ export default function TodayListClient({ initial }: { initial: Today[] }) {
     });
     if (!res.ok) return toast.error("Remove failed");
     setItems((prev) => prev.filter((p) => p.issueKey !== issueKey));
+  }
+
+  async function openPreview(issueKey: string) {
+    setPreviewKey(issueKey);
+    setPreviewComment("");
+    setPreviewOpenStartedAt(null);
+    try {
+      const url = new URL("/api/time/open", window.location.origin);
+      url.searchParams.set("sourceType", "jira");
+      url.searchParams.set("sourceId", issueKey);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.open && data.startedAt)
+          setPreviewOpenStartedAt(new Date(data.startedAt));
+      }
+    } catch {}
+  }
+
+  async function pushPreview() {
+    if (!previewKey) return;
+    const key = previewKey;
+    const body = new FormData();
+    body.append("sourceType", "jira");
+    body.append("sourceId", key);
+    if (previewComment.trim()) body.append("comment", previewComment.trim());
+    const res = await fetch("/api/time/stop-and-worklog", {
+      method: "POST",
+      body,
+    });
+    if (!res.ok) {
+      try {
+        const data = await res.json();
+        toast.error(data?.message || "Worklog push failed");
+      } catch {
+        toast.error("Worklog push failed");
+      }
+      return;
+    }
+    const data = await res.json();
+    if (data.worklog === "pushed" && data.pushedAt) {
+      toast.success("Worklog pushed");
+      setItems((prev) =>
+        prev.map((it) =>
+          it.issueKey === key ? { ...it, lastPushedAt: data.pushedAt } : it
+        )
+      );
+    } else if (data.worklog === "failed") {
+      toast.error(data?.message || "Worklog push failed");
+    } else if (data.worklog === "skipped") {
+      toast("Stopped without pushing");
+    }
+    setPreviewKey(null);
+    setPreviewComment("");
+    setPreviewOpenStartedAt(null);
   }
 
   async function addComment(issueKey: string) {
@@ -174,6 +256,7 @@ export default function TodayListClient({ initial }: { initial: Today[] }) {
                 onStart={onStart}
                 onStop={onStop}
                 onRemove={onRemove}
+                onPreviewWorklog={openPreview}
               />
               <div className="flex items-center gap-2 pl-10">
                 <button
@@ -235,6 +318,49 @@ export default function TodayListClient({ initial }: { initial: Today[] }) {
               )}
             </div>
           ))}
+          {previewKey && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-lg rounded bg-white p-4 shadow">
+                <div className="mb-2 text-sm font-semibold">
+                  Preview worklog
+                </div>
+                <div className="mb-3 text-xs opacity-70">
+                  Issue: {previewIssue?.issueKey}
+                </div>
+                <div className="mb-2 text-xs">Comment</div>
+                <textarea
+                  value={previewComment}
+                  onChange={(e) => setPreviewComment(e.target.value)}
+                  className="h-24 w-full rounded border p-2 text-sm"
+                  placeholder="Optional comment to include with the worklog"
+                />
+                {previewOpenStartedAt && (
+                  <div className="mt-2 text-[11px] opacity-60">
+                    Open timer started at{" "}
+                    {previewOpenStartedAt.toLocaleString()}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setPreviewKey(null);
+                      setPreviewComment("");
+                      setPreviewOpenStartedAt(null);
+                    }}
+                    className="rounded border px-2 py-1 text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={pushPreview}
+                    className="rounded bg-blue-600 px-3 py-1 text-xs text-white"
+                  >
+                    Stop & Push
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </SortableContext>
     </DndContext>
