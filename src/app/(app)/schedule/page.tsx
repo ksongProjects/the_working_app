@@ -5,6 +5,9 @@ import dynamic from "next/dynamic";
 const ScheduleBlocksClient = dynamic(() => import("./ScheduleBlocksClient"), {
   ssr: false,
 });
+const TimelineClient = dynamic(() => import("./TimelineClient"), {
+  ssr: false,
+});
 
 type Item = { id: string; title: string; start?: string; end?: string };
 
@@ -97,6 +100,9 @@ export default function SchedulePage() {
 
       <h2 className="mt-8 text-lg font-semibold">Planned blocks</h2>
       <ScheduleBlocksClient dateISO={dateISO} />
+
+      <h2 className="mt-8 text-lg font-semibold">Day timeline</h2>
+      <TimelineClient dateISO={dateISO} />
     </div>
   );
 }

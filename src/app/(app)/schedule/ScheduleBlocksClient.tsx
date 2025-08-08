@@ -11,6 +11,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
   const [title, setTitle] = useState("");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
+  const [mirrorToGoogle, setMirrorToGoogle] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -50,6 +51,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
         title,
         start: startISO,
         end: endISO,
+        mirrorTo: mirrorToGoogle ? "google" : null,
       }),
     });
     if (!res.ok) return toast.error("Create failed");
@@ -112,6 +114,14 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
             ))}
           </select>
         </div>
+        <label className="mb-1 flex items-center gap-2 text-xs opacity-80">
+          <input
+            type="checkbox"
+            checked={mirrorToGoogle}
+            onChange={(e) => setMirrorToGoogle(e.target.checked)}
+          />
+          Mirror to Google calendar
+        </label>
         <button
           onClick={create}
           className="rounded bg-blue-600 px-3 py-1 text-sm text-white"
