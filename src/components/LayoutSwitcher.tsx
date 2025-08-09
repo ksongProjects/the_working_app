@@ -35,9 +35,9 @@ export default function LayoutSwitcher({ initial }: { initial: Layout }) {
         onChange={(e) => setLayout(e.target.value as Layout)}
         className="rounded border px-2 py-1"
       >
-        <option value="threeColumn">Three columns</option>
+        <option value="split">Split 1:1</option>
         <option value="twoByTwo">2×2 grid</option>
-        <option value="split">Split</option>
+        <option value="threeColumn">Three columns (legacy)</option>
       </select>
       <button
         onClick={save}

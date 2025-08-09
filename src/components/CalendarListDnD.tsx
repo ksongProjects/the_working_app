@@ -317,7 +317,13 @@ export default function CalendarListDnD() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-end gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <div>
+          <div className="font-medium">Weekly Calendar</div>
+          <div className="opacity-70">
+            {days[0]} — {days[days.length - 1]}
+          </div>
+        </div>
         <label className="flex items-center gap-2">
           <span className="opacity-70">Provider</span>
           <select

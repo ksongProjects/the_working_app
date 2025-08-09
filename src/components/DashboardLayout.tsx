@@ -74,27 +74,19 @@ export default function DashboardLayout({
           {renderWidget(zones["left"] || "scheduler")}
         </div>
         <div className="rounded border p-3 min-h-[560px]">
-          {renderWidget(zones["right"] || "editor")}
+          {renderWidget(zones["right"] || "calendar")}
         </div>
       </div>
     );
   }
 
-  // default: threeColumn
+  // default: threeColumn -> collapse center by default to split-like for simplicity
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_minmax(0,1fr)_520px]">
-      <div className="space-y-4">
-        <div className="rounded border p-3">
-          {renderWidget(zones["leftTop"] || "scheduler")}
-        </div>
-        <div className="rounded border p-3">
-          {renderWidget(zones["leftBottom"] || "jira")}
-        </div>
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="rounded border p-3 min-h-[560px]">
+        {renderWidget(zones["leftTop"] || "scheduler")}
       </div>
       <div className="rounded border p-3 min-h-[560px]">
-        {renderWidget(zones["center"] || "editor")}
-      </div>
-      <div className="rounded border p-3">
         {renderWidget(zones["right"] || "calendar")}
       </div>
     </div>

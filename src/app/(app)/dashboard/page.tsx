@@ -5,10 +5,7 @@ import { SelectionProvider } from "@/components/Selection";
 import DynamicEditor from "@/components/DynamicEditor";
 import CalendarPanel from "@/components/CalendarPanel";
 import SchedulerWithControls from "@/components/SchedulerWithControls";
-import DashboardLayout from "@/components/DashboardLayout";
-import LayoutSwitcher from "@/components/LayoutSwitcher";
-import ZoneEditor from "@/components/ZoneEditor";
-import ZoneEditorDnD from "@/components/ZoneEditorDnD";
+// Removed DnD layout system; keep a fixed split layout
 
 const AddIssuesClient = dynamic(() => import("../today/AddIssuesClient"));
 const TodayListClient = dynamic(() => import("../today/TodayListClient"));
@@ -48,30 +45,38 @@ export default async function DashboardPage() {
     getTodayTotals(userId),
   ]);
   const dateISO = new Date().toISOString().slice(0, 10);
-  // Read layout settings
-  const settings = await prisma.settings.findUnique({ where: { userId } });
-  const layout = (settings?.dashboardLayout as any) || "threeColumn";
-  const zones = (settings?.dashboardZones as any) || {};
-
   return (
     <SelectionProvider>
       <div className="mx-auto max-w-[1400px] p-4">
         <div className="mb-3 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <LayoutSwitcher initial={layout} />
-            <ZoneEditorDnD layout={layout} initialZones={zones} />
-            <div className="text-xs opacity-80">
-              Today total: {totals.hours}h {totals.minutes}m
+          <div className="text-xs opacity-80">
+            Today total: {totals.hours}h {totals.minutes}m
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 text-xs font-medium">Today's Scheduler</div>
+              <SchedulerWithControls dateISO={dateISO} />
+            </div>
+            <div>
+              <div className="mb-2 text-xs font-medium">Jira Today</div>
+              <AddIssuesClient />
+              <div className="mt-2">
+                <TodayListClient initial={issues} />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="rounded border p-3">
+              <CalendarPanel />
+            </div>
+            <div className="rounded border p-3">
+              <DynamicEditor />
             </div>
           </div>
         </div>
-        <DashboardLayout
-          layout={layout}
-          zones={zones}
-          dateISO={dateISO}
-          todayIssues={issues}
-        />
       </div>
     </SelectionProvider>
   );

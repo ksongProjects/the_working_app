@@ -27,7 +27,7 @@ export default function SchedulerWithControls({
           return (
             <div>
               <div className="mb-2 flex items-center justify-between text-xs">
-                <div />
+                <TodayStats />
                 <div className="opacity-80">
                   <span className="mr-3">
                     Total: {formatMins(totalWorkday)}
@@ -86,4 +86,46 @@ function LiveActualHours() {
     };
   }, []);
   return <span>Actual: {formatMins(minutesToday)}</span>;
+}
+
+function TodayStats() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    workMs: number;
+    breakMs: number;
+    meetingMs: number;
+    focusMs: number;
+  } | null>(null);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const dateISO = new Date().toISOString().slice(0, 10);
+        const res = await fetch(`/api/stats/workday?date=${dateISO}`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const s = await res.json();
+          setStats({
+            workMs: s.workMs || 0,
+            breakMs: s.breakMs || 0,
+            meetingMs: s.meetingMs || 0,
+            focusMs: s.focusMs || 0,
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+  if (loading || !stats)
+    return <div className="text-[11px] opacity-60">Fetching stats…</div>;
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-[11px]">
+      <span>Work {formatMins(Math.round(stats.workMs / 60000))}</span>
+      <span>Focus {formatMins(Math.round(stats.focusMs / 60000))}</span>
+      <span>Meetings {formatMins(Math.round(stats.meetingMs / 60000))}</span>
+      <span>Breaks {formatMins(Math.round(stats.breakMs / 60000))}</span>
+    </div>
+  );
 }

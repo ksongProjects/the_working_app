@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth/config';
-import { prisma } from '@/lib/prisma';
 import { listGoogleEventsForDay, listGoogleEventsBetween, updateGoogleEvent, deleteGoogleEvent, createGoogleEvent } from '@/server/google/calendar';
 import { listOutlookEventsForDay, listOutlookEventsBetween, updateOutlookEvent, deleteOutlookEvent, createOutlookEvent } from '@/server/microsoft/calendar';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -100,9 +100,28 @@ export async function POST(request: Request) {
   try {
     if (provider === 'google') {
       const res = await createGoogleEvent({ userId, title, startISO: start, endISO: end });
+      // If the event is for today, reflect into TodayEntry
+      const day = start.slice(0, 10);
+      const todayISO = new Date().toISOString().slice(0, 10);
+      if (day === todayISO) {
+        await prisma.todayEntry.upsert({
+          where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } },
+          update: { title, start: new Date(start), end: new Date(end), provider: 'google' },
+          create: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id, title, start: new Date(start), end: new Date(end), provider: 'google' },
+        });
+      }
       return NextResponse.json({ id: res.id });
     } else {
       const res = await createOutlookEvent({ userId, title, startISO: start, endISO: end });
+      const day = start.slice(0, 10);
+      const todayISO = new Date().toISOString().slice(0, 10);
+      if (day === todayISO) {
+        await prisma.todayEntry.upsert({
+          where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } },
+          update: { title, start: new Date(start), end: new Date(end), provider: 'microsoft' },
+          create: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id, title, start: new Date(start), end: new Date(end), provider: 'microsoft' },
+        });
+      }
       return NextResponse.json({ id: res.id });
     }
   } catch (e: any) {
@@ -124,8 +143,22 @@ export async function PATCH(request: Request) {
   try {
     if (provider === 'google') {
       await updateGoogleEvent({ userId, eventId: id, title, startISO: start, endISO: end });
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const day = (start || '').slice(0, 10) || todayISO;
+      await prisma.todayEntry.upsert({
+        where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } },
+        update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined, provider: 'google' },
+        create: { userId, dateISO: day, kind: 'calendar', sourceId: id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null, provider: 'google' },
+      });
     } else {
       await updateOutlookEvent({ userId, eventId: id, title, startISO: start, endISO: end });
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const day = (start || '').slice(0, 10) || todayISO;
+      await prisma.todayEntry.upsert({
+        where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } },
+        update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined, provider: 'microsoft' },
+        create: { userId, dateISO: day, kind: 'calendar', sourceId: id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null, provider: 'microsoft' },
+      });
     }
     return NextResponse.json({ ok: true });
   } catch (e: any) {
@@ -147,6 +180,8 @@ export async function DELETE(request: Request) {
     } else {
       await deleteOutlookEvent({ userId, eventId: id });
     }
+    const todayISO = new Date().toISOString().slice(0, 10);
+    await prisma.todayEntry.delete({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: id } } }).catch(() => {});
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
