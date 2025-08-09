@@ -58,10 +58,9 @@ export default function AddIssuesClient() {
         const res = await fetch("/api/jira/projects", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          const list = (data.values || data.projects || []).map((p: any) => ({
-            key: p.key,
-            name: p.name,
-          }));
+          type JiraProject = { key: string; name: string };
+          const raw = (data.values || data.projects || []) as JiraProject[];
+          const list = raw.map((p) => ({ key: p.key, name: p.name }));
           setProjects(list);
         }
       } catch {
@@ -69,6 +68,13 @@ export default function AddIssuesClient() {
       }
     })();
   }, []);
+
+  // Auto-run search when project changes
+  useEffect(() => {
+    if (projects.length === 0 && !projectKey) return; // wait until projects fetched or selection made
+    runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectKey]);
 
   const addToToday = useCallback(async (issueKey: string) => {
     try {

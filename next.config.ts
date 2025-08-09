@@ -7,9 +7,14 @@ const nextConfig: NextConfig = {
     serverSourceMaps: false,
   },
   output: 'standalone',
-  webpack(config, { dev }) {
+  webpack(config, { dev, isServer }) {
     if (dev) {
       config.devtool = false;
+    }
+    // Ensure ESM packages like @xenova/transformers are transpiled on the server
+    if (isServer) {
+      const externals = config.externals || [];
+      config.externals = externals;
     }
     return config;
   },

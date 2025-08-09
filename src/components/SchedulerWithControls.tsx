@@ -14,16 +14,13 @@ export default function SchedulerWithControls({
   dateISO: string;
 }) {
   const [plannedMinutes, setPlannedMinutes] = useState(0);
-  const [workdayMinutes, setWorkdayMinutes] = useState(8 * 60);
+  const [, setWorkdayMinutes] = useState(8 * 60);
   return (
     <div>
       <WorkdayControls>
         {(startMin, endMin) => {
           const totalWorkday = Math.max(0, endMin - startMin);
-          // Avoid setState during render: defer to effect when value changes
-          useEffect(() => {
-            setWorkdayMinutes(totalWorkday);
-          }, [totalWorkday]);
+          // Avoid setState during render
           return (
             <div>
               <div className="mb-2 flex items-center justify-between text-xs">
@@ -97,6 +94,7 @@ function TodayStats() {
     focusMs: number;
   } | null>(null);
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
       try {
@@ -106,17 +104,22 @@ function TodayStats() {
         });
         if (res.ok) {
           const s = await res.json();
-          setStats({
-            workMs: s.workMs || 0,
-            breakMs: s.breakMs || 0,
-            meetingMs: s.meetingMs || 0,
-            focusMs: s.focusMs || 0,
-          });
+          if (!cancelled) {
+            setStats({
+              workMs: s.workMs || 0,
+              breakMs: s.breakMs || 0,
+              meetingMs: s.meetingMs || 0,
+              focusMs: s.focusMs || 0,
+            });
+          }
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
   if (loading || !stats)
     return <div className="text-[11px] opacity-60">Fetching stats…</div>;

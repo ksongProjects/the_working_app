@@ -8,8 +8,8 @@ export async function GET(request: Request) {
   if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const url = new URL(request.url);
-  const sourceType = url.searchParams.get('sourceType');
-  const sourceId = url.searchParams.get('sourceId');
+  const sourceType = url.searchParams.get('sourceType') || undefined;
+  const sourceId = url.searchParams.get('sourceId') || undefined;
   const totalsOnly = url.searchParams.get('totals') === '1' || url.searchParams.get('totals') === 'true';
 
   if (totalsOnly) {
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   if (!sourceId) return NextResponse.json({ error: 'missing-sourceId' }, { status: 400 });
 
   const openEntry = await prisma.timeEntry.findFirst({
-    where: { userId, sourceType, sourceId, endedAt: null },
+    where: { userId, sourceType: sourceType || undefined, sourceId, endedAt: null },
     orderBy: { startedAt: 'desc' },
     select: { id: true, startedAt: true },
   });

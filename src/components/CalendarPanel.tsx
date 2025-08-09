@@ -93,9 +93,20 @@ export default function CalendarPanel() {
         if (providerParam) url.searchParams.set("provider", providerParam);
         const res = await fetch(url.toString(), { cache: "no-store" });
         if (res.ok) {
-          const data = await res.json();
-          const g = (data.google || data.items || []) as any[];
-          const m = (data.microsoft || []) as any[];
+          const data = (await res.json()) as {
+            items?: unknown[];
+            google?: unknown[];
+            microsoft?: unknown[];
+          };
+          type Raw = {
+            id: string;
+            subject?: string;
+            summary?: string;
+            start?: { dateTime?: string; date?: string };
+            end?: { dateTime?: string; date?: string };
+          };
+          const g = (data.google || data.items || []) as Raw[];
+          const m = (data.microsoft || []) as Raw[];
           setGoogle(
             g.map((e) => ({
               id: e.id,
@@ -126,7 +137,7 @@ export default function CalendarPanel() {
       <div className="mb-2">
         <div className="text-sm font-medium">Calendar</div>
       </div>
-      <div className="mb-2 flex flex-wrap items-center gap-3">
+      <div className="mb-1 flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-xs">
           <span className="opacity-70">Week starting..</span>
           <input
@@ -138,13 +149,31 @@ export default function CalendarPanel() {
         </label>
         <select
           value={view}
-          onChange={(e) => setView(e.target.value as any)}
+          onChange={(e) => setView(e.target.value as "list" | "month")}
           className="rounded border px-2 py-1 text-xs"
         >
           <option value="list">List (DnD)</option>
           <option value="month">Month grid</option>
         </select>
       </div>
+      {view === "list" && (
+        <div className="mb-2 text-xs opacity-70">
+          {(() => {
+            const base = new Date(dateISO + "T00:00:00Z");
+            const start = new Date(base);
+            const end = new Date(base);
+            end.setUTCDate(end.getUTCDate() + 6);
+            const fmt: Intl.DateTimeFormatOptions = {
+              month: "short",
+              day: "numeric",
+            };
+            return `Week of ${start.toLocaleDateString(
+              undefined,
+              fmt
+            )} — ${end.toLocaleDateString(undefined, fmt)}`;
+          })()}
+        </div>
+      )}
       {view === "month" ? (
         <div className="mt-2">
           <CalendarMonthGrid />

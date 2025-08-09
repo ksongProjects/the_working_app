@@ -2,10 +2,12 @@ import { pipeline, env } from '@xenova/transformers';
 
 env.allowLocalModels = false;
 
-let embedderPromise: Promise<any> | null = null;
-async function getEmbedder() {
+type FeatureExtractor = (text: string, opts: { pooling: 'mean'; normalize: boolean }) => Promise<number[]>;
+let embedderPromise: Promise<FeatureExtractor> | null = null;
+async function getEmbedder(): Promise<FeatureExtractor> {
   if (!embedderPromise) {
-    embedderPromise = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    // @ts-expect-error transformers typing
+    embedderPromise = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2') as Promise<FeatureExtractor>;
   }
   return embedderPromise;
 }
@@ -43,14 +45,12 @@ export async function classifyText(text: string): Promise<{ label: 'meeting' | '
   const hasWorkKw = /([A-Z]{2,}-\d+)|(implement|fix|review|deploy|task|todo)/i.test(text);
 
   const extractor = await getEmbedder();
-  // @ts-ignore transformers.js returns array
-  const emb = (await extractor(text, { pooling: 'mean', normalize: true })) as number[];
+  const emb = await extractor(text, { pooling: 'mean', normalize: true });
 
   async function score(seeds: string[]) {
     let best = -1;
     for (const s of seeds) {
-      // @ts-ignore
-      const e = (await extractor(s, { pooling: 'mean', normalize: true })) as number[];
+      const e = await extractor(s, { pooling: 'mean', normalize: true });
       const c = cosine(emb, e);
       if (c > best) best = c;
     }
@@ -59,7 +59,7 @@ export async function classifyText(text: string): Promise<{ label: 'meeting' | '
 
   const [mScore, wScore] = await Promise.all([score(MEETING_SEEDS), score(WORK_SEEDS)]);
   let label: 'meeting' | 'work_item' = mScore >= wScore ? 'meeting' : 'work_item';
-  let confidence = Math.max(mScore, wScore);
+  const confidence = Math.max(mScore, wScore);
   if (hasMeetingKw && !hasWorkKw) label = 'meeting';
   if (hasWorkKw && !hasMeetingKw) label = 'work_item';
   return { label, confidence, method: 'embeddings' };

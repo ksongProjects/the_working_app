@@ -92,14 +92,21 @@ export default function CalendarListDnD({
         if (res.ok) {
           const data = await res.json();
           const rows: EventItem[] = [];
-          const google = (data.google || data.items || []).map((e: any) => ({
+          type Raw = {
+            id: string;
+            subject?: string;
+            summary?: string;
+            start?: { dateTime?: string; date?: string };
+            end?: { dateTime?: string; date?: string };
+          };
+          const google = (data.google || data.items || []).map((e: Raw) => ({
             id: e.id,
             title: e.summary ?? e.subject ?? "(no title)",
             start: e.start?.dateTime ?? e.start?.date,
             end: e.end?.dateTime ?? e.end?.date,
             provider: "google" as const,
           }));
-          const microsoft = (data.microsoft || []).map((e: any) => ({
+          const microsoft = (data.microsoft || []).map((e: Raw) => ({
             id: e.id,
             title: e.subject ?? e.summary ?? "(no title)",
             start: e.start?.dateTime,
@@ -334,7 +341,9 @@ export default function CalendarListDnD({
           <span className="opacity-70">Provider</span>
           <select
             value={providerFilter}
-            onChange={(e) => setProviderFilter(e.target.value as any)}
+            onChange={(e) =>
+              setProviderFilter(e.target.value as Provider | "all")
+            }
             className="rounded border px-2 py-1"
           >
             <option value="all">All</option>

@@ -111,10 +111,7 @@ export async function POST(request: Request) {
           update: { title, start: new Date(start), end: new Date(end), provider: 'google' },
           create: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id, title, start: new Date(start), end: new Date(end), provider: 'google' },
         });
-        // Store category if schema supports it
-        try {
-          await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } }, data: { /* @ts-ignore */ category: cls.label } });
-        } catch {}
+        // Optional: store classification later when schema supports it
       }
       return NextResponse.json({ id: res.id });
     } else {
@@ -128,14 +125,13 @@ export async function POST(request: Request) {
           update: { title, start: new Date(start), end: new Date(end), provider: 'microsoft' },
           create: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id, title, start: new Date(start), end: new Date(end), provider: 'microsoft' },
         });
-        try {
-          await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } }, data: { /* @ts-ignore */ category: cls.label } });
-        } catch {}
+        // Optional: store classification later when schema supports it
       }
       return NextResponse.json({ id: res.id });
     }
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'failed';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -161,9 +157,7 @@ export async function PATCH(request: Request) {
         update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined, provider: 'google' },
         create: { userId, dateISO: day, kind: 'calendar', sourceId: id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null, provider: 'google' },
       });
-      if (cls) {
-        try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
-      }
+      // Optional: store classification later when schema supports it
     } else {
       await updateOutlookEvent({ userId, eventId: id, title, startISO: start, endISO: end });
       const todayISO = new Date().toISOString().slice(0, 10);
@@ -174,13 +168,12 @@ export async function PATCH(request: Request) {
         update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined, provider: 'microsoft' },
         create: { userId, dateISO: day, kind: 'calendar', sourceId: id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null, provider: 'microsoft' },
       });
-      if (cls) {
-        try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
-      }
+      // Optional: store classification later when schema supports it
     }
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'failed';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -201,8 +194,9 @@ export async function DELETE(request: Request) {
     const todayISO = new Date().toISOString().slice(0, 10);
     await prisma.todayEntry.delete({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: id } } }).catch(() => {});
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'failed';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 

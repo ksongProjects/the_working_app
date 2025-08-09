@@ -64,7 +64,14 @@ export default function CalendarMonthGrid() {
       if (res.ok) {
         const data = await res.json();
         const by: Record<string, GridEvent[]> = {};
-        const addGoogle = (e: any) => {
+        type Raw = {
+          id: string;
+          subject?: string;
+          summary?: string;
+          start?: { dateTime?: string; date?: string };
+          end?: { dateTime?: string; date?: string };
+        };
+        const addGoogle = (e: Raw) => {
           const dt = e.start?.dateTime ?? e.start?.date;
           if (!dt) return;
           const day = dt.slice(0, 10);
@@ -77,7 +84,7 @@ export default function CalendarMonthGrid() {
             end: e.end?.dateTime ?? e.end?.date,
           });
         };
-        const addMs = (e: any) => {
+        const addMs = (e: Raw) => {
           const dt = e.start?.dateTime ?? e.start?.date;
           if (!dt) return;
           const day = dt.slice(0, 10);
@@ -174,13 +181,14 @@ export default function CalendarMonthGrid() {
   }
 
   function DraggableEvent({ ev }: { ev: GridEvent }) {
-    const { attributes, listeners, setNodeRef, transform, transition } =
-      useDraggable({ id: ev.id });
+    const d = useDraggable({ id: ev.id });
+    const { attributes, listeners, setNodeRef } = d;
+    const transform = d.transform as { x: number; y: number } | null;
     const style = {
       transform: transform
         ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
         : undefined,
-      transition,
+      transition: undefined,
     } as React.CSSProperties;
     return (
       <div

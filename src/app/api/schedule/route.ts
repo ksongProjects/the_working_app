@@ -44,8 +44,7 @@ export async function POST(request: Request) {
         update: { title, start: new Date(start), end: new Date(end) },
         create: { userId, dateISO, kind: 'schedule', sourceId: row.id, title, start: new Date(start), end: new Date(end) },
       });
-      // Try to store classifier label if column exists
-      try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: row.id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
+      // Optional: store classification later when schema supports it
     } catch {}
     if (mirrorTo === 'google') {
       try {
@@ -75,9 +74,7 @@ export async function POST(request: Request) {
         update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined },
         create: { userId, dateISO, kind: 'schedule', sourceId: row.id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null },
       });
-      if (cls) {
-        try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: row.id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
-      }
+      // Optional: store classification later when schema supports it
     } catch {}
     if (row.provider === 'google' && row.providerEventId) {
       try {

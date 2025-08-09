@@ -78,8 +78,11 @@ export const authConfig: NextAuthOptions = {
   providers: configuredProviders,
   callbacks: {
     async session({ session, user }) {
-      // Ensure user.id is available on the session for server components
-      if (session.user) (session.user as any).id = user?.id;
+      if (session.user) {
+        const s = session as unknown as { user?: { id?: string } };
+        s.user = s.user || {};
+        s.user.id = user?.id;
+      }
       return session;
     },
   },
