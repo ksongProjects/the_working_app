@@ -158,6 +158,9 @@ model Settings {
   defaultWorklogCommentTemplate String?
   autoPushWorklog Boolean @default(false)
   timezone  String?
+  googleSyncIntervalMinutes     Int? // how often to refresh Google calendar (manual scheduling)
+  microsoftSyncIntervalMinutes  Int? // how often to refresh Outlook calendar
+  atlassianSyncIntervalMinutes  Int? // how often to refresh Jira caches
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

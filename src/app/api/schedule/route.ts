@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth/config';
-import { createGoogleEvent, updateGoogleEvent } from '@/server/google/calendar';
-import { createOutlookEvent, updateOutlookEvent } from '@/server/microsoft/calendar';
+import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from '@/server/google/calendar';
+import { createOutlookEvent, updateOutlookEvent, deleteOutlookEvent } from '@/server/microsoft/calendar';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -66,6 +66,18 @@ export async function POST(request: Request) {
   }
   if (action === 'delete') {
     const { id } = body as { id: string };
+    // Fetch the row to know if it was mirrored
+    const row = await prisma.scheduleBlock.findUnique({ where: { id } });
+    if (!row) return NextResponse.json({ ok: true });
+    // Best-effort delete on provider if mirrored
+    try {
+      if (row.provider === 'google' && row.providerEventId) {
+        await deleteGoogleEvent({ userId: session.user.id, eventId: row.providerEventId });
+      }
+      if (row.provider === 'microsoft' && row.providerEventId) {
+        await deleteOutlookEvent({ userId: session.user.id, eventId: row.providerEventId });
+      }
+    } catch {}
     await prisma.scheduleBlock.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   }

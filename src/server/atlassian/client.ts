@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { getValidAccessToken } from '@/server/oauth/token';
 
 export type AtlassianClient = {
   accessToken: string;
@@ -15,19 +16,16 @@ async function getAccessibleResources(accessToken: string) {
 }
 
 export async function getAtlassianClient(userId: string): Promise<AtlassianClient> {
-  const linked = await prisma.connectedAccount.findUnique({
-    where: { userId_provider: { userId, provider: 'atlassian' } },
-    select: { accessToken: true },
-  });
-  if (!linked?.accessToken) throw new Error('No Atlassian account linked');
+  const accessToken = await getValidAccessToken(userId, 'atlassian');
+  if (!accessToken) throw new Error('No Atlassian account linked');
 
-  const resources = await getAccessibleResources(linked.accessToken);
+  const resources = await getAccessibleResources(accessToken);
   const jira = resources.find((r) => r.scopes?.length && r.scopes.some((s) => s.includes('jira')));
   const fallback = resources[0];
   const cloudId = jira?.id ?? fallback?.id;
   if (!cloudId) throw new Error('No accessible Jira cloud found');
 
-  return { accessToken: linked.accessToken, cloudId };
+  return { accessToken, cloudId };
 }
 
 

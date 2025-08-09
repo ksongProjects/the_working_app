@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import SettingsEditor from "./settings-editor";
+import DisconnectButton from "./disconnect-button";
 import Link from "next/link";
 import { auth } from "@/auth/config";
 
@@ -35,6 +37,9 @@ export default async function ConnectionsPage() {
               ? "Re-connect"
               : "Connect"}
           </Link>
+          {accounts.some((a) => a.provider === "google") && (
+            <DisconnectButton provider="google" />
+          )}
         </div>
         <div className="flex items-center justify-between rounded border p-4">
           <div>
@@ -51,6 +56,9 @@ export default async function ConnectionsPage() {
               ? "Re-connect"
               : "Connect"}
           </Link>
+          {accounts.some((a) => a.provider === "microsoft") && (
+            <DisconnectButton provider="microsoft" />
+          )}
         </div>
         <div className="flex items-center justify-between rounded border p-4">
           <div>
@@ -67,10 +75,18 @@ export default async function ConnectionsPage() {
               ? "Re-connect"
               : "Connect"}
           </Link>
+          {accounts.some((a) => a.provider === "atlassian") && (
+            <DisconnectButton provider="atlassian" />
+          )}
         </div>
         {!userId && (
           <p className="text-sm opacity-70">Sign in to manage connections.</p>
         )}
+      </div>
+      {/* Per-provider sync intervals */}
+      <div className="mt-10">
+        {/* @ts-expect-error Async Server Component wrapper */}
+        <SettingsEditor />
       </div>
     </div>
   );

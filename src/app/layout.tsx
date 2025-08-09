@@ -35,18 +35,16 @@ export default function RootLayout({
               Today Dashboard
             </Link>
             <div className="flex items-center gap-2">
-              <Link
-                className="rounded border px-2 py-1"
-                href="/api/auth/signin"
-              >
+              <Link className="rounded border px-2 py-1" href="/sign-in">
                 Sign in
               </Link>
-              <Link
-                className="rounded border px-2 py-1"
-                href="/api/auth/signout"
-              >
-                Sign out
-              </Link>
+              {/* Client sign-out button to avoid 405 on GET */}
+              {/* @ts-expect-error Async Server Component wrapper */}
+              {(() => {
+                const SignOutButton =
+                  require("@/components/SignOutButton").default;
+                return <SignOutButton />;
+              })()}
             </div>
           </header>
           {children}
