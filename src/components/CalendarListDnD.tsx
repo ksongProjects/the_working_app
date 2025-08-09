@@ -60,10 +60,12 @@ function Row({
 }
 
 export default function CalendarListDnD() {
-  const [dateISO, setDateISO] = useState(new Date().toISOString().slice(0, 10));
+  const [dateISO] = useState(new Date().toISOString().slice(0, 10));
   const [itemsByDay, setItemsByDay] = useState<Record<string, EventItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [providerFilter, setProviderFilter] = useState<"all" | Provider>("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createDayISO, setCreateDayISO] = useState<string | null>(null);
   const days = useMemo(() => {
     // Render a 7-day window centered on selected date
     const base = new Date(dateISO + "T00:00:00Z");
@@ -156,33 +158,40 @@ export default function CalendarListDnD() {
     const activeId = e.active?.id?.toString();
     const overId = e.over?.id?.toString();
     if (!activeId || !overId) return;
-    // overId is the day bucket when dragging from list to a day header
     const ev = Object.values(itemsByDay)
       .flat()
       .find((it) => it.id === activeId);
     if (!ev) return;
-    if (days.includes(overId)) {
-      moveEventToDay(ev, overId).then(() => {
-        setItemsByDay((prev) => {
-          const next: Record<string, EventItem[]> = {};
-          for (const d of Object.keys(prev))
-            next[d] = prev[d].filter((x) => x.id !== ev.id);
-          if (!next[overId]) next[overId] = [];
-          const time = getTimeParts(ev.start) || { hh: 9, mm: 0 };
-          const dur = getDurationMinutes(ev.start, ev.end);
-          const s = new Date(`${overId}T00:00:00Z`);
-          s.setUTCHours(time.hh, time.mm, 0, 0);
-          const e2 = new Date(s);
-          e2.setUTCMinutes(e2.getUTCMinutes() + dur);
-          next[overId].push({
-            ...ev,
-            start: s.toISOString(),
-            end: e2.toISOString(),
-          });
-          return next;
-        });
-      });
+    let targetDay = days.includes(overId) ? overId : null;
+    if (!targetDay) {
+      for (const d of Object.keys(itemsByDay)) {
+        if ((itemsByDay[d] || []).some((x) => x.id === overId)) {
+          targetDay = d;
+          break;
+        }
+      }
     }
+    if (!targetDay) return;
+    moveEventToDay(ev, targetDay).then(() => {
+      setItemsByDay((prev) => {
+        const next: Record<string, EventItem[]> = {};
+        for (const d of Object.keys(prev))
+          next[d] = prev[d].filter((x) => x.id !== ev.id);
+        if (!next[targetDay!]) next[targetDay!] = [];
+        const time = getTimeParts(ev.start) || { hh: 9, mm: 0 };
+        const dur = getDurationMinutes(ev.start, ev.end);
+        const s = new Date(`${targetDay}T00:00:00Z`);
+        s.setUTCHours(time.hh, time.mm, 0, 0);
+        const e2 = new Date(s);
+        e2.setUTCMinutes(e2.getUTCMinutes() + dur);
+        next[targetDay!].push({
+          ...ev,
+          start: s.toISOString(),
+          end: e2.toISOString(),
+        });
+        return next;
+      });
+    });
   }
 
   function DayBucket({
@@ -308,63 +317,43 @@ export default function CalendarListDnD() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-sm">
-        <input
-          type="date"
-          value={dateISO}
-          onChange={(e) => setDateISO(e.target.value)}
-          className="rounded border px-2 py-1"
-        />
-        <select
-          value={providerFilter}
-          onChange={(e) => setProviderFilter(e.target.value as any)}
-          className="rounded border px-2 py-1 text-xs"
-        >
-          <option value="all">All providers</option>
-          <option value="google">Google</option>
-          <option value="microsoft">Microsoft</option>
-        </select>
+      <div className="flex items-center justify-end gap-2 text-xs">
+        <label className="flex items-center gap-2">
+          <span className="opacity-70">Provider</span>
+          <select
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value as any)}
+            className="rounded border px-2 py-1"
+          >
+            <option value="all">All</option>
+            <option value="google">Google</option>
+            <option value="microsoft">Microsoft</option>
+          </select>
+        </label>
         {loading && <span className="opacity-70">Loading…</span>}
       </div>
       <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div>
-            <div className="mb-1 text-xs font-semibold">Events</div>
-            <SortableContext
-              items={Object.values(itemsByDay)
-                .flat()
-                .map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {Object.values(itemsByDay)
-                  .flat()
-                  .map((i) => (
-                    <Row key={i.id} item={i} onMove={() => {}} />
-                  ))}
-              </div>
-            </SortableContext>
-          </div>
-          <div>
-            <div className="mb-1 text-xs font-semibold">Days</div>
-            <div className="space-y-2">
-              {days.map((d) => (
-                <DayBucket key={d} dayISO={d}>
-                  <div className="space-y-1 text-xs opacity-90">
-                    {(itemsByDay[d] || [])
-                      .filter(
-                        (e) =>
-                          providerFilter === "all" ||
-                          e.provider === providerFilter
-                      )
-                      .map((e) => (
-                        <DayEventEditable key={e.id} ev={e} dayISO={d} />
-                      ))}
-                  </div>
-                </DayBucket>
-              ))}
-            </div>
-          </div>
+        <div className="space-y-3">
+          {days.map((d) => (
+            <DayBucket key={d} dayISO={d}>
+              <SortableContext
+                items={(itemsByDay[d] || []).map((i) => i.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-1 text-xs opacity-90">
+                  {(itemsByDay[d] || [])
+                    .filter(
+                      (e) =>
+                        providerFilter === "all" ||
+                        e.provider === providerFilter
+                    )
+                    .map((e) => (
+                      <DayEventEditable key={e.id} ev={e} dayISO={d} />
+                    ))}
+                </div>
+              </SortableContext>
+            </DayBucket>
+          ))}
         </div>
       </DndContext>
       <EventCreateModal

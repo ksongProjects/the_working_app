@@ -27,6 +27,17 @@ body {
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
+/* Subtle card/border helpers */
+.card {
+  @apply rounded-lg border bg-background shadow-sm ring-1 ring-black/5;
+}
+.card-header {
+  @apply flex items-center justify-between border-b px-3 py-2 text-xs font-semibold;
+}
+.card-body {
+  @apply p-3;
+}
+
 /* Scrollbar: show thumb only, transparent track */
 .scrollbar-no-track {
   /* Firefox */
