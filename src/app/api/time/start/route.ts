@@ -4,7 +4,8 @@ import { auth } from '@/auth/config';
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const form = await request.formData();
   const sourceType = String(form.get('sourceType') || 'custom');
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
 
   const entry = await prisma.timeEntry.create({
     data: {
-      userId: session.user.id,
+      userId,
       sourceType,
       sourceId: sourceId || undefined,
       startedAt: new Date(),

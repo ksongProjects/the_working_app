@@ -5,7 +5,8 @@ import { addWorklog } from '@/server/atlassian/worklog';
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const form = await request.formData();
   const sourceType = String(form.get('sourceType') || 'custom');
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   const comment = form.get('comment') ? String(form.get('comment')) : undefined;
 
   const openEntry = await prisma.timeEntry.findFirst({
-    where: { userId: session.user.id, sourceType, sourceId, endedAt: null },
+    where: { userId, sourceType, sourceId, endedAt: null },
     orderBy: { startedAt: 'desc' },
   });
   if (!openEntry) return NextResponse.json({ error: 'no-open-entry' }, { status: 400 });
@@ -24,9 +25,9 @@ export async function POST(request: Request) {
   });
 
   if (sourceType === 'jira' && sourceId && updated.endedAt) {
-    const effectiveComment = comment || (await prisma.settings.findUnique({ where: { userId: session.user.id } }))?.defaultWorklogCommentTemplate || undefined;
+    const effectiveComment = comment || (await prisma.settings.findUnique({ where: { userId } }))?.defaultWorklogCommentTemplate || undefined;
     try {
-      await addWorklog({ userId: session.user.id, issueKey: sourceId, started: updated.startedAt, ended: updated.endedAt, comment: effectiveComment });
+      await addWorklog({ userId, issueKey: sourceId, started: updated.startedAt, ended: updated.endedAt, comment: effectiveComment });
       const pushedAt = new Date();
       await prisma.timeEntry.update({ where: { id: updated.id }, data: { pushedToJiraWorklogAt: pushedAt } });
       return NextResponse.json({ ok: true, id: updated.id, worklog: 'pushed', pushedAt: pushedAt.toISOString() });

@@ -2,13 +2,15 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { auth } from "@/auth/config";
 import dynamic from "next/dynamic";
-const AddIssuesClient = dynamic(() => import("./AddIssuesClient"), {
-  ssr: false,
-});
-const TodayListClient = dynamic(() => import("./TodayListClient"), {
-  ssr: false,
-});
+const AddIssuesClient = dynamic(() => import("./AddIssuesClient"));
+const TodayListClient = dynamic(() => import("./TodayListClient"));
 
+type TodayIssueRow = {
+  id: string;
+  issueKey: string;
+  notes: string | null;
+  lastPushedAt?: string | null;
+};
 async function getTodayIssues(userId: string) {
   const issues = await prisma.todayIssue.findMany({
     where: { userId },
@@ -28,7 +30,12 @@ async function getTodayIssues(userId: string) {
         orderBy: { pushedToJiraWorklogAt: "desc" },
         select: { pushedToJiraWorklogAt: true },
       });
-      return { ...i, lastPushedAt: last?.pushedToJiraWorklogAt ?? null } as any;
+      return {
+        ...i,
+        lastPushedAt: last?.pushedToJiraWorklogAt
+          ? last.pushedToJiraWorklogAt.toISOString()
+          : null,
+      } as TodayIssueRow;
     })
   );
   return withPush;
@@ -36,7 +43,7 @@ async function getTodayIssues(userId: string) {
 
 export default async function TodayPage() {
   const session = await auth();
-  const userId = session?.user?.id;
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
   if (!userId) {
     return (
       <div className="p-6">
@@ -60,7 +67,7 @@ export default async function TodayPage() {
         <AddIssuesClient />
       </div>
 
-      <TodayListClient initial={issues as any} />
+      <TodayListClient initial={issues} />
     </div>
   );
 }

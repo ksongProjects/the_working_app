@@ -4,9 +4,10 @@ import { auth } from '@/auth/config';
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const rows = await prisma.todayIssue.findMany({
-    where: { userId: session.user.id },
+    where: { userId },
     orderBy: { orderIndex: 'asc' },
   });
   return NextResponse.json(rows);
@@ -14,7 +15,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json();
   const action = body?.action as 'add' | 'remove' | 'reorder' | undefined;
   if (!action) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
@@ -22,13 +24,13 @@ export async function POST(request: Request) {
   if (action === 'add') {
     const { issueKey, notes } = body as { issueKey: string; notes?: string };
     const max = await prisma.todayIssue.aggregate({
-      where: { userId: session.user.id },
+      where: { userId },
       _max: { orderIndex: true },
     });
     const orderIndex = (max._max.orderIndex ?? 0) + 1;
     const row = await prisma.todayIssue.upsert({
-      where: { userId_issueKey: { userId: session.user.id, issueKey } },
-      create: { userId: session.user.id, issueKey, orderIndex, notes },
+      where: { userId_issueKey: { userId, issueKey } },
+      create: { userId, issueKey, orderIndex, notes },
       update: { notes },
     });
     return NextResponse.json(row);
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
   if (action === 'remove') {
     const { issueKey } = body as { issueKey: string };
     await prisma.todayIssue.delete({
-      where: { userId_issueKey: { userId: session.user.id, issueKey } },
+      where: { userId_issueKey: { userId, issueKey } },
     });
     return NextResponse.json({ ok: true });
   }
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     const { order } = body as { order: string[] };
     const updates = order.map((issueKey, idx) =>
       prisma.todayIssue.update({
-        where: { userId_issueKey: { userId: session.user.id, issueKey } },
+        where: { userId_issueKey: { userId, issueKey } },
         data: { orderIndex: idx + 1 },
       })
     );

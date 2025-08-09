@@ -6,13 +6,14 @@ import { createOutlookEvent, updateOutlookEvent, deleteOutlookEvent } from '@/se
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const { searchParams } = new URL(request.url);
   const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
   const start = new Date(date + 'T00:00:00.000Z');
   const end = new Date(date + 'T23:59:59.999Z');
   const items = await prisma.scheduleBlock.findMany({
-    where: { userId: session.user.id, start: { lte: end }, end: { gte: start } },
+    where: { userId, start: { lte: end }, end: { gte: start } },
     orderBy: { start: 'asc' },
   });
   return NextResponse.json({ items });
@@ -20,7 +21,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json();
   const action = body?.action as 'create' | 'update' | 'delete' | undefined;
   if (!action) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
@@ -30,17 +32,17 @@ export async function POST(request: Request) {
       title: string; start: string; end: string; sourceType?: string; sourceId?: string | null; mirrorTo?: 'google' | 'microsoft' | null;
     };
     const row = await prisma.scheduleBlock.create({
-      data: { userId: session.user.id, title, start: new Date(start), end: new Date(end), sourceType: sourceType || 'custom', sourceId: sourceId || undefined },
+      data: { userId, title, start: new Date(start), end: new Date(end), sourceType: sourceType || 'custom', sourceId: sourceId || undefined },
     });
     if (mirrorTo === 'google') {
       try {
-        const created = await createGoogleEvent({ userId: session.user.id, title, startISO: start, endISO: end });
+        const created = await createGoogleEvent({ userId, title, startISO: start, endISO: end });
         await prisma.scheduleBlock.update({ where: { id: row.id }, data: { provider: 'google', providerEventId: created.id } });
       } catch {}
     }
     if (mirrorTo === 'microsoft') {
       try {
-        const created = await createOutlookEvent({ userId: session.user.id, title, startISO: start, endISO: end });
+        const created = await createOutlookEvent({ userId, title, startISO: start, endISO: end });
         await prisma.scheduleBlock.update({ where: { id: row.id }, data: { provider: 'microsoft', providerEventId: created.id } });
       } catch {}
     }
@@ -54,12 +56,12 @@ export async function POST(request: Request) {
     });
     if (row.provider === 'google' && row.providerEventId) {
       try {
-        await updateGoogleEvent({ userId: session.user.id, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
+        await updateGoogleEvent({ userId, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
       } catch {}
     }
     if (row.provider === 'microsoft' && row.providerEventId) {
       try {
-        await updateOutlookEvent({ userId: session.user.id, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
+        await updateOutlookEvent({ userId, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
       } catch {}
     }
     return NextResponse.json(row);
@@ -72,10 +74,10 @@ export async function POST(request: Request) {
     // Best-effort delete on provider if mirrored
     try {
       if (row.provider === 'google' && row.providerEventId) {
-        await deleteGoogleEvent({ userId: session.user.id, eventId: row.providerEventId });
+        await deleteGoogleEvent({ userId, eventId: row.providerEventId });
       }
       if (row.provider === 'microsoft' && row.providerEventId) {
-        await deleteOutlookEvent({ userId: session.user.id, eventId: row.providerEventId });
+        await deleteOutlookEvent({ userId, eventId: row.providerEventId });
       }
     } catch {}
     await prisma.scheduleBlock.delete({ where: { id } });

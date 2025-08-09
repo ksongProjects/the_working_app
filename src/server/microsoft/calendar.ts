@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/prisma';
 import { getValidAccessToken } from '@/server/oauth/token';
 
 type MsEvent = {
@@ -15,6 +14,18 @@ export async function listOutlookEventsForDay(userId: string, dateISO: string) {
   const end = new Date(dateISO + 'T23:59:59Z').toISOString();
   const res = await fetch(
     `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(start)}&endDateTime=${encodeURIComponent(end)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.value ?? []) as MsEvent[];
+}
+
+export async function listOutlookEventsBetween(userId: string, startISO: string, endISO: string) {
+  const accessToken = await getValidAccessToken(userId, 'microsoft');
+  if (!accessToken) return [] as MsEvent[];
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(startISO)}&endDateTime=${encodeURIComponent(endISO)}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
   );
   if (!res.ok) return [];
@@ -44,7 +55,7 @@ export async function updateOutlookEvent(params: { userId: string; eventId: stri
   const { userId, eventId, title, startISO, endISO } = params;
   const accessToken = await getValidAccessToken(userId, 'microsoft');
   if (!accessToken) throw new Error('No Microsoft account linked');
-  const patch: any = {};
+  const patch: { subject?: string; start?: { dateTime: string; timeZone: 'UTC' }; end?: { dateTime: string; timeZone: 'UTC' } } = {};
   if (title) patch.subject = title;
   if (startISO) patch.start = { dateTime: startISO, timeZone: 'UTC' };
   if (endISO) patch.end = { dateTime: endISO, timeZone: 'UTC' };

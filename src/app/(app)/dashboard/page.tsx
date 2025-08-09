@@ -2,15 +2,9 @@ import dynamic from "next/dynamic";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth/config";
 
-const AddIssuesClient = dynamic(() => import("../today/AddIssuesClient"), {
-  ssr: false,
-});
-const TodayListClient = dynamic(() => import("../today/TodayListClient"), {
-  ssr: false,
-});
-const TimelineClient = dynamic(() => import("../schedule/TimelineClient"), {
-  ssr: false,
-});
+const AddIssuesClient = dynamic(() => import("../today/AddIssuesClient"));
+const TodayListClient = dynamic(() => import("../today/TodayListClient"));
+const TimelineClient = dynamic(() => import("../schedule/TimelineClient"));
 
 async function getTodayIssues(userId: string) {
   return prisma.todayIssue.findMany({
@@ -39,7 +33,7 @@ async function getTodayTotals(userId: string) {
 
 export default async function DashboardPage() {
   const session = await auth();
-  const userId = session?.user?.id;
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
   if (!userId) return <div className="p-6 text-sm">Please sign in.</div>;
   const [issues, totals] = await Promise.all([
     getTodayIssues(userId),
@@ -58,7 +52,6 @@ export default async function DashboardPage() {
         <div>
           <div className="mb-2 text-sm font-medium">Jira Today</div>
           <AddIssuesClient />
-          {/* @ts-expect-error Async Server Component wrapper */}
           <TodayListClient initial={issues} />
         </div>
         <div>

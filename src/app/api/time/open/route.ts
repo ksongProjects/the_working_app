@@ -4,7 +4,8 @@ import { auth } from '@/auth/config';
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const url = new URL(request.url);
   const sourceType = String(url.searchParams.get('sourceType') || 'custom');
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   if (!sourceId) return NextResponse.json({ error: 'missing-sourceId' }, { status: 400 });
 
   const openEntry = await prisma.timeEntry.findFirst({
-    where: { userId: session.user.id, sourceType, sourceId, endedAt: null },
+    where: { userId, sourceType, sourceId, endedAt: null },
     orderBy: { startedAt: 'desc' },
     select: { id: true, startedAt: true },
   });

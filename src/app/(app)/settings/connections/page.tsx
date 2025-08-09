@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import SettingsEditor from "./settings-editor";
+import PostConnectInit from "./PostConnectInit";
 import DisconnectButton from "./disconnect-button";
-import Link from "next/link";
+// import Link from "next/link";
+import ConnectButton from "./connect-button";
 import { auth } from "@/auth/config";
 
 async function getData(userId: string) {
@@ -12,12 +14,18 @@ async function getData(userId: string) {
   return accounts;
 }
 
-export default async function ConnectionsPage() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default async function ConnectionsPage(props: any) {
+  const { searchParams } = (props || {}) as { searchParams?: Record<string, string | string[]> };
   const session = await auth();
-  const userId = session?.user?.id;
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
   const accounts = userId
     ? await getData(userId)
     : ([] as Array<{ provider: string }>);
+  const connected =
+    typeof searchParams?.connected === "string"
+      ? (searchParams!.connected as string)
+      : undefined;
   return (
     <div className="mx-auto max-w-2xl p-6">
       <h1 className="text-xl font-semibold">Connected accounts</h1>
@@ -29,14 +37,19 @@ export default async function ConnectionsPage() {
             <div className="font-medium">Google</div>
             <div className="text-xs opacity-70">Calendar read/write</div>
           </div>
-          <Link
-            href="/api/auth/signin/google"
-            className="rounded border px-3 py-1 text-sm"
-          >
-            {accounts.some((a) => a.provider === "google")
-              ? "Re-connect"
-              : "Connect"}
-          </Link>
+          {accounts.some((a) => a.provider === "google") ? (
+            <ConnectButton
+              provider="google"
+              label="Re-connect"
+              callbackConnected="google"
+            />
+          ) : (
+            <ConnectButton
+              provider="google"
+              label="Connect"
+              callbackConnected="google"
+            />
+          )}
           {accounts.some((a) => a.provider === "google") && (
             <DisconnectButton provider="google" />
           )}
@@ -48,14 +61,19 @@ export default async function ConnectionsPage() {
               Outlook calendar read/write
             </div>
           </div>
-          <Link
-            href="/api/auth/signin/azure-ad"
-            className="rounded border px-3 py-1 text-sm"
-          >
-            {accounts.some((a) => a.provider === "microsoft")
-              ? "Re-connect"
-              : "Connect"}
-          </Link>
+          {accounts.some((a) => a.provider === "microsoft") ? (
+            <ConnectButton
+              provider="azure-ad"
+              label="Re-connect"
+              callbackConnected="microsoft"
+            />
+          ) : (
+            <ConnectButton
+              provider="azure-ad"
+              label="Connect"
+              callbackConnected="microsoft"
+            />
+          )}
           {accounts.some((a) => a.provider === "microsoft") && (
             <DisconnectButton provider="microsoft" />
           )}
@@ -67,14 +85,19 @@ export default async function ConnectionsPage() {
               Jira issues, comments, worklogs
             </div>
           </div>
-          <Link
-            href="/api/auth/signin/atlassian"
-            className="rounded border px-3 py-1 text-sm"
-          >
-            {accounts.some((a) => a.provider === "atlassian")
-              ? "Re-connect"
-              : "Connect"}
-          </Link>
+          {accounts.some((a) => a.provider === "atlassian") ? (
+            <ConnectButton
+              provider="atlassian"
+              label="Re-connect"
+              callbackConnected="atlassian"
+            />
+          ) : (
+            <ConnectButton
+              provider="atlassian"
+              label="Connect"
+              callbackConnected="atlassian"
+            />
+          )}
           {accounts.some((a) => a.provider === "atlassian") && (
             <DisconnectButton provider="atlassian" />
           )}
@@ -83,9 +106,11 @@ export default async function ConnectionsPage() {
           <p className="text-sm opacity-70">Sign in to manage connections.</p>
         )}
       </div>
+      {/* Post-connect init */}
+      <PostConnectInit provider={connected} />
+
       {/* Per-provider sync intervals */}
       <div className="mt-10">
-        {/* @ts-expect-error Async Server Component wrapper */}
         <SettingsEditor />
       </div>
     </div>

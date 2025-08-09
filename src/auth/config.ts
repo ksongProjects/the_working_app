@@ -1,17 +1,15 @@
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import NextAuth, { type NextAuthOptions, type Account, type User } from 'next-auth';
+import { getServerSession, type NextAuthOptions, type Account, type User } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import Atlassian from 'next-auth/providers/atlassian';
 import AzureAD from 'next-auth/providers/azure-ad';
 import { prisma } from '@/lib/prisma';
 import { upsertLinkedAccount } from '@/server/oauth/saveLinkedAccount';
+import { ensureUserDefaults } from '@/server/users/init';
 
-export const authConfig: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  session: { strategy: 'database' },
-  providers: [
-    Credentials({
+const configuredProviders = [
+  Credentials({
       name: 'Email',
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -28,40 +26,56 @@ export const authConfig: NextAuthOptions = {
         });
         return { id: created.id, email: created.email, name: created.name } as User;
       },
-    }),
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope:
-            'openid email profile https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      },
-    }),
-    AzureAD({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
-      authorization: {
-        params: {
-          scope: 'openid profile email offline_access Calendars.ReadWrite',
-        },
-      },
-    }),
-    Atlassian({
-      clientId: process.env.ATLASSIAN_CLIENT_ID!,
-      clientSecret: process.env.ATLASSIAN_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope:
-            'offline_access read:jira-user read:jira-work write:jira-work read:me',
-        },
-      },
-    }),
-  ],
+  }),
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? [
+        Google({
+          clientId: process.env.GOOGLE_CLIENT_ID as string,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+          authorization: {
+            params: {
+              scope:
+                'openid email profile https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
+              access_type: 'offline',
+              prompt: 'consent',
+            },
+          },
+        }),
+      ]
+    : []),
+  ...(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET
+    ? [
+        AzureAD({
+          clientId: process.env.AZURE_AD_CLIENT_ID as string,
+          clientSecret: process.env.AZURE_AD_CLIENT_SECRET as string,
+          tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
+          authorization: {
+            params: {
+              scope: 'openid profile email offline_access Calendars.ReadWrite',
+            },
+          },
+        }),
+      ]
+    : []),
+  ...(process.env.ATLASSIAN_CLIENT_ID && process.env.ATLASSIAN_CLIENT_SECRET
+    ? [
+        Atlassian({
+          clientId: process.env.ATLASSIAN_CLIENT_ID as string,
+          clientSecret: process.env.ATLASSIAN_CLIENT_SECRET as string,
+          authorization: {
+            params: {
+              scope: 'offline_access read:jira-user read:jira-work write:jira-work read:me',
+            },
+          },
+        }),
+      ]
+    : []),
+ ] satisfies NonNullable<NextAuthOptions['providers']>;
+
+export const authConfig: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  session: { strategy: 'database' },
+  providers: configuredProviders,
   events: {
     async signIn({ user, account }: { user: User; account?: Account | null }) {
       if (!account || !user?.id) return;
@@ -76,11 +90,16 @@ export const authConfig: NextAuthOptions = {
         expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
         scopes: account.scope ?? null,
       });
+      // Ensure per-user defaults (e.g., Settings)
+      await ensureUserDefaults(user.id);
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export const { auth, handlers, signIn, signOut } = NextAuth(authConfig);
+// NextAuth v4 does not provide `auth()`; expose a compatible helper
+export function auth() {
+  return getServerSession(authConfig);
+}
 
 

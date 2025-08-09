@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/prisma';
 import { getValidAccessToken } from '@/server/oauth/token';
 
 type GoogleEvent = {
@@ -17,6 +16,20 @@ export async function listGoogleEventsForDay(userId: string, dateISO: string) {
     `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
       timeMin
     )}&timeMax=${encodeURIComponent(timeMax)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.items ?? []) as GoogleEvent[];
+}
+
+export async function listGoogleEventsBetween(userId: string, startISO: string, endISO: string) {
+  const accessToken = await getValidAccessToken(userId, 'google');
+  if (!accessToken) return [] as GoogleEvent[];
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(
+      startISO
+    )}&timeMax=${encodeURIComponent(endISO)}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
   );
   if (!res.ok) return [];
@@ -46,7 +59,7 @@ export async function updateGoogleEvent(params: { userId: string; eventId: strin
   const { userId, eventId, title, startISO, endISO } = params;
   const accessToken = await getValidAccessToken(userId, 'google');
   if (!accessToken) throw new Error('No Google account linked');
-  const patch: any = {};
+  const patch: { summary?: string; start?: { dateTime: string }; end?: { dateTime: string } } = {};
   if (title) patch.summary = title;
   if (startISO) patch.start = { dateTime: startISO };
   if (endISO) patch.end = { dateTime: endISO };

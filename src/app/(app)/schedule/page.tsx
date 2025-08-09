@@ -25,9 +25,11 @@ export default function SchedulePage() {
           cache: "no-store",
         });
         if (res.ok) {
-          const data = await res.json();
+          type GoogleAPIEvent = { id: string; summary?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string } };
+          type MicrosoftAPIEvent = { id: string; subject?: string; start?: { dateTime?: string }; end?: { dateTime?: string } };
+          const data: { google?: GoogleAPIEvent[]; microsoft?: MicrosoftAPIEvent[]; items?: GoogleAPIEvent[] } = await res.json();
           setGoogle(
-            (data.google || data.items || []).map((e: any) => ({
+            (data.google || data.items || []).map((e: { id: string; summary?: string; subject?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string } }) => ({
               id: e.id,
               title: e.summary ?? e.subject ?? "(no title)",
               start: e.start?.dateTime ?? e.start?.date,
@@ -35,7 +37,7 @@ export default function SchedulePage() {
             }))
           );
           setMicrosoft(
-            (data.microsoft || []).map((e: any) => ({
+            (data.microsoft || []).map((e: { id: string; subject?: string; summary?: string; start?: { dateTime?: string }; end?: { dateTime?: string } }) => ({
               id: e.id,
               title: e.subject ?? e.summary ?? "(no title)",
               start: e.start?.dateTime,

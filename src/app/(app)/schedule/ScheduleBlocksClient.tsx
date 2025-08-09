@@ -20,9 +20,9 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
         cache: "no-store",
       });
       if (res.ok) {
-        const data = await res.json();
+        const data: { items?: Array<{ id: string; title: string; start: string; end: string }> } = await res.json();
         setBlocks(
-          (data.items || []).map((b: any) => ({
+          (data.items || []).map((b) => ({
             id: b.id,
             title: b.title,
             start: b.start,
@@ -37,6 +37,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateISO]);
 
   async function create() {
@@ -117,7 +118,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
         <div className="mb-1 text-xs opacity-80">Mirror to calendar</div>
         <select
           value={mirror}
-          onChange={(e) => setMirror(e.target.value as any)}
+          onChange={(e) => setMirror(e.target.value as 'none' | 'google' | 'microsoft')}
           className="rounded border px-2 py-1 text-sm"
         >
           <option value="none">None</option>
@@ -137,7 +138,7 @@ export default function ScheduleBlocksClient({ dateISO }: { dateISO: string }) {
         {!loading && blocks.length === 0 && (
           <div className="text-sm opacity-70">No blocks yet.</div>
         )}
-        {blocks.map((b) => (
+        {blocks.map((b: Block) => (
           <div
             key={b.id}
             className="flex items-center justify-between rounded border p-2 text-sm"
