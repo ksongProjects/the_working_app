@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type JiraSearchIssue = {
@@ -18,14 +18,21 @@ export default function AddIssuesClient() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<JiraSearchIssue[]>([]);
+  const [projects, setProjects] = useState<{ key: string; name: string }[]>([]);
+  const [projectKey, setProjectKey] = useState<string>("");
 
   const jql = useMemo(() => {
-    if (!query.trim()) {
-      return 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC';
+    const parts: string[] = [
+      "assignee = currentUser()",
+      "resolution = Unresolved",
+    ];
+    if (projectKey) parts.push(`project = ${projectKey}`);
+    if (query.trim()) {
+      const escaped = query.replace(/"/g, '\\"');
+      parts.push(`text ~ "${escaped}"`);
     }
-    const escaped = query.replace(/"/g, '\\"');
-    return `assignee = currentUser() AND text ~ "${escaped}" ORDER BY updated DESC`;
-  }, [query]);
+    return `${parts.join(" AND ")} ORDER BY updated DESC`;
+  }, [query, projectKey]);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
@@ -45,6 +52,24 @@ export default function AddIssuesClient() {
     }
   }, [jql]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/jira/projects", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const list = (data.values || data.projects || []).map((p: any) => ({
+            key: p.key,
+            name: p.name,
+          }));
+          setProjects(list);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
+
   const addToToday = useCallback(async (issueKey: string) => {
     try {
       const res = await fetch("/api/jira/today", {
@@ -62,7 +87,22 @@ export default function AddIssuesClient() {
 
   return (
     <div className="rounded border p-3">
-      <div className="flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-xs">
+          <span className="opacity-70">Project</span>
+          <select
+            value={projectKey}
+            onChange={(e) => setProjectKey(e.target.value)}
+            className="rounded border px-2 py-1 text-sm"
+          >
+            <option value="">All</option>
+            {projects.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.key} — {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -81,9 +121,14 @@ export default function AddIssuesClient() {
       {results.length > 0 && (
         <div className="mt-3 divide-y rounded border">
           {results.map((it) => (
-            <div key={it.id} className="flex items-center justify-between p-2 text-sm">
+            <div
+              key={it.id}
+              className="flex items-center justify-between p-2 text-sm"
+            >
               <div className="min-w-0 flex-1">
-                <div className="truncate font-mono text-xs opacity-70">{it.key}</div>
+                <div className="truncate font-mono text-xs opacity-70">
+                  {it.key}
+                </div>
                 <div className="truncate">{it.fields.summary}</div>
               </div>
               <div className="ml-2 whitespace-nowrap text-xs opacity-70">
@@ -102,5 +147,3 @@ export default function AddIssuesClient() {
     </div>
   );
 }
-
-

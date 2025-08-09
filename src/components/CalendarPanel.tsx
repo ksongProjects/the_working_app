@@ -123,13 +123,19 @@ export default function CalendarPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-2 flex items-center gap-2">
-        <input
-          type="date"
-          value={dateISO}
-          onChange={(e) => setDateISO(e.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-        />
+      <div className="mb-2">
+        <div className="text-sm font-medium">Calendar</div>
+      </div>
+      <div className="mb-2 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-xs">
+          <span className="opacity-70">Week starting..</span>
+          <input
+            type="date"
+            value={dateISO}
+            onChange={(e) => setDateISO(e.target.value)}
+            className="rounded border px-2 py-1 text-sm"
+          />
+        </label>
         <select
           value={view}
           onChange={(e) => setView(e.target.value as any)}
@@ -145,7 +151,7 @@ export default function CalendarPanel() {
         </div>
       ) : (
         <div className="mt-2">
-          <CalendarListDnD />
+          <CalendarListDnD dateISO={dateISO} />
         </div>
       )}
     </div>

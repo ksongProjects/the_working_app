@@ -59,8 +59,14 @@ function Row({
   );
 }
 
-export default function CalendarListDnD() {
-  const [dateISO] = useState(new Date().toISOString().slice(0, 10));
+export default function CalendarListDnD({
+  dateISO: initialDateISO,
+}: {
+  dateISO?: string;
+}) {
+  const [dateISO, setDateISO] = useState(
+    initialDateISO || new Date().toISOString().slice(0, 10)
+  );
   const [itemsByDay, setItemsByDay] = useState<Record<string, EventItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [providerFilter, setProviderFilter] = useState<"all" | Provider>("all");

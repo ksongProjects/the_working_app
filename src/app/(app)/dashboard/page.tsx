@@ -9,7 +9,6 @@ import SchedulerWithControls from "@/components/SchedulerWithControls";
 
 const AddIssuesClient = dynamic(() => import("../today/AddIssuesClient"));
 const TodayListClient = dynamic(() => import("../today/TodayListClient"));
-const TimelineClient = dynamic(() => import("../schedule/TimelineClient"));
 
 async function getTodayIssues(userId: string) {
   return prisma.todayIssue.findMany({
@@ -57,14 +56,19 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-4">
             <div>
-              <div className="mb-2 text-xs font-medium">Today's Scheduler</div>
-              <SchedulerWithControls dateISO={dateISO} />
-            </div>
-            <div>
-              <div className="mb-2 text-xs font-medium">Jira Today</div>
-              <AddIssuesClient />
-              <div className="mt-2">
-                <TodayListClient initial={issues} />
+              <div className="mb-2 text-sm font-medium">Work Day</div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <div className="mb-2 text-xs font-medium">Scheduler</div>
+                  <SchedulerWithControls dateISO={dateISO} />
+                </div>
+                <div>
+                  <div className="mb-2 text-xs font-medium">Jira Issues</div>
+                  <AddIssuesClient />
+                  <div className="mt-2">
+                    <TodayListClient initial={issues} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
