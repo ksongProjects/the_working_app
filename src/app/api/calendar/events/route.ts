@@ -3,6 +3,7 @@ import { auth } from '@/auth/config';
 import { listGoogleEventsForDay, listGoogleEventsBetween, updateGoogleEvent, deleteGoogleEvent, createGoogleEvent } from '@/server/google/calendar';
 import { listOutlookEventsForDay, listOutlookEventsBetween, updateOutlookEvent, deleteOutlookEvent, createOutlookEvent } from '@/server/microsoft/calendar';
 import { prisma } from '@/lib/prisma';
+import { classifyText } from '@/server/classifier';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -104,11 +105,16 @@ export async function POST(request: Request) {
       const day = start.slice(0, 10);
       const todayISO = new Date().toISOString().slice(0, 10);
       if (day === todayISO) {
+        const cls = await classifyText(title);
         await prisma.todayEntry.upsert({
           where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } },
           update: { title, start: new Date(start), end: new Date(end), provider: 'google' },
           create: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id, title, start: new Date(start), end: new Date(end), provider: 'google' },
         });
+        // Store category if schema supports it
+        try {
+          await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } }, data: { /* @ts-ignore */ category: cls.label } });
+        } catch {}
       }
       return NextResponse.json({ id: res.id });
     } else {
@@ -116,11 +122,15 @@ export async function POST(request: Request) {
       const day = start.slice(0, 10);
       const todayISO = new Date().toISOString().slice(0, 10);
       if (day === todayISO) {
+        const cls = await classifyText(title);
         await prisma.todayEntry.upsert({
           where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } },
           update: { title, start: new Date(start), end: new Date(end), provider: 'microsoft' },
           create: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id, title, start: new Date(start), end: new Date(end), provider: 'microsoft' },
         });
+        try {
+          await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: todayISO, kind: 'calendar', sourceId: res.id } }, data: { /* @ts-ignore */ category: cls.label } });
+        } catch {}
       }
       return NextResponse.json({ id: res.id });
     }
@@ -145,20 +155,28 @@ export async function PATCH(request: Request) {
       await updateGoogleEvent({ userId, eventId: id, title, startISO: start, endISO: end });
       const todayISO = new Date().toISOString().slice(0, 10);
       const day = (start || '').slice(0, 10) || todayISO;
+      const cls = title ? await classifyText(title) : null;
       await prisma.todayEntry.upsert({
         where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } },
         update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined, provider: 'google' },
         create: { userId, dateISO: day, kind: 'calendar', sourceId: id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null, provider: 'google' },
       });
+      if (cls) {
+        try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
+      }
     } else {
       await updateOutlookEvent({ userId, eventId: id, title, startISO: start, endISO: end });
       const todayISO = new Date().toISOString().slice(0, 10);
       const day = (start || '').slice(0, 10) || todayISO;
+      const cls = title ? await classifyText(title) : null;
       await prisma.todayEntry.upsert({
         where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } },
         update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined, provider: 'microsoft' },
         create: { userId, dateISO: day, kind: 'calendar', sourceId: id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null, provider: 'microsoft' },
       });
+      if (cls) {
+        try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO: day, kind: 'calendar', sourceId: id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
+      }
     }
     return NextResponse.json({ ok: true });
   } catch (e: any) {

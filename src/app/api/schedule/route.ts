@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth/config';
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from '@/server/google/calendar';
 import { createOutlookEvent, updateOutlookEvent, deleteOutlookEvent } from '@/server/microsoft/calendar';
+import { classifyText } from '@/server/classifier';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -34,6 +35,18 @@ export async function POST(request: Request) {
     const row = await prisma.scheduleBlock.create({
       data: { userId, title, start: new Date(start), end: new Date(end), sourceType: sourceType || 'custom', sourceId: sourceId || undefined },
     });
+    // Mirror to TodayEntry (scheduler kind)
+    try {
+      const dateISO = start.slice(0, 10);
+      const cls = await classifyText(title);
+      await prisma.todayEntry.upsert({
+        where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: row.id } },
+        update: { title, start: new Date(start), end: new Date(end) },
+        create: { userId, dateISO, kind: 'schedule', sourceId: row.id, title, start: new Date(start), end: new Date(end) },
+      });
+      // Try to store classifier label if column exists
+      try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: row.id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
+    } catch {}
     if (mirrorTo === 'google') {
       try {
         const created = await createGoogleEvent({ userId, title, startISO: start, endISO: end });
@@ -54,6 +67,18 @@ export async function POST(request: Request) {
       where: { id },
       data: { title, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined },
     });
+    try {
+      const dateISO = (start || row.start.toISOString()).slice(0, 10);
+      const cls = title ? await classifyText(title) : null;
+      await prisma.todayEntry.upsert({
+        where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: row.id } },
+        update: { title: title || undefined, start: start ? new Date(start) : undefined, end: end ? new Date(end) : undefined },
+        create: { userId, dateISO, kind: 'schedule', sourceId: row.id, title: title || '(no title)', start: start ? new Date(start) : null, end: end ? new Date(end) : null },
+      });
+      if (cls) {
+        try { await prisma.todayEntry.update({ where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: row.id } }, data: { /* @ts-ignore */ category: cls.label } }); } catch {}
+      }
+    } catch {}
     if (row.provider === 'google' && row.providerEventId) {
       try {
         await updateGoogleEvent({ userId, eventId: row.providerEventId, title: title, startISO: start, endISO: end });
@@ -81,6 +106,11 @@ export async function POST(request: Request) {
       }
     } catch {}
     await prisma.scheduleBlock.delete({ where: { id } });
+    // Remove from TodayEntry
+    try {
+      const dateISO = (row?.start || new Date()).toISOString().slice(0,10);
+      await prisma.todayEntry.delete({ where: { userId_dateISO_kind_sourceId: { userId, dateISO, kind: 'schedule', sourceId: id } } });
+    } catch {}
     return NextResponse.json({ ok: true });
   }
   return NextResponse.json({ error: 'unsupported_action' }, { status: 400 });
