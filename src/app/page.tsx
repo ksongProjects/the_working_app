@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { auth } from "@/auth/config";
+import { redirect } from "next/navigation";
 import { Calendar, Clock, Plug, TicketCheck } from "lucide-react";
 
 export default async function HomePage() {
   const session = await auth();
   const isAuthed = !!session;
+  if (isAuthed) return redirect("/dashboard");
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <section className="text-center">
@@ -16,11 +18,8 @@ export default async function HomePage() {
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {isAuthed ? (
             <>
-              <Link href="/today" className="rounded border px-4 py-2">
-                Today
-              </Link>
-              <Link href="/schedule" className="rounded border px-4 py-2">
-                Schedule
+              <Link href="/dashboard" className="rounded border px-4 py-2">
+                Dashboard
               </Link>
               <Link
                 href="/settings/connections"

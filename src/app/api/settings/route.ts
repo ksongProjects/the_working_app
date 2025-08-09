@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const userId = (session as { user?: { id?: string } } | null)?.user?.id;
   if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json();
-  const { autoPushWorklog, defaultWorklogCommentTemplate, timezone, workdayStart, workdayEnd, googleSyncIntervalMinutes, microsoftSyncIntervalMinutes, atlassianSyncIntervalMinutes, googleMonthsBefore, googleMonthsAfter, microsoftMonthsBefore, microsoftMonthsAfter, jiraSelectedProjectKeys, jiraSelectedDashboardIds } = body as {
+  const { autoPushWorklog, defaultWorklogCommentTemplate, timezone, workdayStart, workdayEnd, googleSyncIntervalMinutes, microsoftSyncIntervalMinutes, atlassianSyncIntervalMinutes, googleMonthsBefore, googleMonthsAfter, microsoftMonthsBefore, microsoftMonthsAfter, jiraSelectedProjectKeys, jiraSelectedDashboardIds, dashboardLayout, dashboardZones } = body as {
     autoPushWorklog?: boolean;
     defaultWorklogCommentTemplate?: string | null;
     timezone?: string | null;
@@ -30,6 +30,8 @@ export async function POST(request: Request) {
     microsoftMonthsAfter?: number | null;
     jiraSelectedProjectKeys?: string[] | null;
     jiraSelectedDashboardIds?: string[] | null;
+    dashboardLayout?: 'threeColumn' | 'twoByTwo' | 'split' | null;
+    dashboardZones?: any;
   };
   const data: Record<string, unknown> = {};
   if (typeof autoPushWorklog === 'boolean') data.autoPushWorklog = autoPushWorklog;
@@ -46,6 +48,8 @@ export async function POST(request: Request) {
   if (typeof microsoftMonthsAfter !== 'undefined') data.microsoftMonthsAfter = microsoftMonthsAfter;
   if (typeof jiraSelectedProjectKeys !== 'undefined') data.jiraSelectedProjectKeys = jiraSelectedProjectKeys;
   if (typeof jiraSelectedDashboardIds !== 'undefined') data.jiraSelectedDashboardIds = jiraSelectedDashboardIds;
+  if (typeof dashboardLayout !== 'undefined') data.dashboardLayout = dashboardLayout as any;
+  if (typeof dashboardZones !== 'undefined') data.dashboardZones = dashboardZones as any;
   const updated = await prisma.settings.upsert({
     where: { userId },
     create: { userId, ...data },

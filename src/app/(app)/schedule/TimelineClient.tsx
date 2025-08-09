@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSelectionOptional } from "@/components/Selection";
 import { toast } from "sonner";
 
 type Block = { id: string; title: string; start: string; end: string };
@@ -21,13 +22,32 @@ function roundToGridMinutes(mins: number) {
   return Math.round(mins / step) * step;
 }
 
-export default function TimelineClient({ dateISO }: { dateISO: string }) {
+export default function TimelineClient({
+  dateISO,
+  rangeStartMin,
+  rangeEndMin,
+  onMetrics,
+}: {
+  dateISO: string;
+  rangeStartMin?: number;
+  rangeEndMin?: number;
+  onMetrics?: (m: { plannedMinutes: number; blocksCount: number }) => void;
+}) {
   const [loading, setLoading] = useState(true);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const selection = useSelectionOptional();
 
   const dayStart = useMemo(() => new Date(`${dateISO}T00:00:00Z`), [dateISO]);
   // const dayEnd = useMemo(() => new Date(`${dateISO}T23:59:59Z`), [dateISO]);
+  const boundStartMin = useMemo(
+    () => (typeof rangeStartMin === "number" ? rangeStartMin : 9 * 60),
+    [rangeStartMin]
+  );
+  const boundEndMin = useMemo(
+    () => (typeof rangeEndMin === "number" ? rangeEndMin : 17 * 60),
+    [rangeEndMin]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +77,36 @@ export default function TimelineClient({ dateISO }: { dateISO: string }) {
     load();
   }, [load]);
 
-  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+  // Recompute planned minutes whenever blocks change
+  useEffect(() => {
+    if (!onMetrics) return;
+    let total = 0;
+    for (const b of blocks) {
+      const s = new Date(b.start);
+      const e = new Date(b.end);
+      const mins = Math.max(0, Math.round((e.getTime() - s.getTime()) / 60000));
+      total += mins;
+    }
+    onMetrics({ plannedMinutes: total, blocksCount: blocks.length });
+  }, [blocks, onMetrics]);
+
+  // Hours strictly from configured start to end (rounded to hour labels)
+  const startHour = useMemo(
+    () => Math.floor(Math.max(0, boundStartMin - 30) / 60),
+    [boundStartMin]
+  );
+  const endHour = useMemo(
+    () => Math.ceil(Math.min(24 * 60, boundEndMin + 30) / 60),
+    [boundEndMin]
+  );
+  const hours = useMemo(
+    () =>
+      Array.from(
+        { length: Math.max(0, endHour - startHour) },
+        (_, i) => startHour + i
+      ),
+    [startHour, endHour]
+  );
 
   function toISO(dateBase: Date, minutesFromStart: number) {
     const dt = new Date(dateBase);
@@ -114,11 +163,16 @@ export default function TimelineClient({ dateISO }: { dateISO: string }) {
             {blocks.map((b) => {
               const start = new Date(b.start);
               const end = new Date(b.end);
-              const topMin = clamp(minutesSinceMidnight(start), 0, 24 * 60);
-              let endMin = clamp(minutesSinceMidnight(end), 0, 24 * 60);
+              const topMinAbs = minutesSinceMidnight(start);
+              const endMinAbs = minutesSinceMidnight(end);
+              // Display within padded window; edits clamped to strict work bounds
+              const displayStartMin = Math.max(0, boundStartMin - 30);
+              const displayEndMin = Math.min(24 * 60, boundEndMin + 30);
+              const topMin = clamp(topMinAbs, displayStartMin, displayEndMin);
+              let endMin = clamp(endMinAbs, displayStartMin, displayEndMin);
               if (endMin <= topMin) endMin = topMin + GRID_MINUTES;
               const height = (endMin - topMin) * MINUTE_HEIGHT;
-              const top = topMin * MINUTE_HEIGHT;
+              const top = (topMin - displayStartMin) * MINUTE_HEIGHT;
 
               return (
                 <BlockItem
@@ -127,18 +181,37 @@ export default function TimelineClient({ dateISO }: { dateISO: string }) {
                   title={b.title}
                   top={top}
                   height={height}
+                  onClick={() =>
+                    selection?.select({
+                      kind: "schedule",
+                      id: b.id,
+                      title: b.title,
+                      start: b.start,
+                      end: b.end,
+                    })
+                  }
                   onDrag={(deltaY) => {
                     const deltaMin = Math.round(deltaY / MINUTE_HEIGHT);
-                    const nextStart = clamp(
-                      roundToGridMinutes(topMin + deltaMin),
-                      0,
-                      24 * 60 - GRID_MINUTES
+                    const strictTopMin = clamp(
+                      topMinAbs,
+                      boundStartMin,
+                      boundEndMin
                     );
-                    const duration = endMin - topMin;
+                    const strictEndMin = clamp(
+                      endMinAbs,
+                      boundStartMin,
+                      boundEndMin
+                    );
+                    const nextStart = clamp(
+                      roundToGridMinutes(strictTopMin + deltaMin),
+                      boundStartMin,
+                      boundEndMin - GRID_MINUTES
+                    );
+                    const duration = strictEndMin - strictTopMin;
                     const nextEnd = clamp(
                       nextStart + duration,
-                      GRID_MINUTES,
-                      24 * 60
+                      boundStartMin + GRID_MINUTES,
+                      boundEndMin
                     );
                     setBlocks((prev) =>
                       prev.map((p) =>
@@ -158,10 +231,20 @@ export default function TimelineClient({ dateISO }: { dateISO: string }) {
                   }}
                   onResize={(deltaY) => {
                     const deltaMin = Math.round(deltaY / MINUTE_HEIGHT);
+                    const strictTopMin = clamp(
+                      topMinAbs,
+                      boundStartMin,
+                      boundEndMin
+                    );
+                    const strictEndMin = clamp(
+                      endMinAbs,
+                      boundStartMin,
+                      boundEndMin
+                    );
                     const nextEnd = clamp(
-                      roundToGridMinutes(endMin + deltaMin),
-                      topMin + GRID_MINUTES,
-                      24 * 60
+                      roundToGridMinutes(strictEndMin + deltaMin),
+                      strictTopMin + GRID_MINUTES,
+                      boundEndMin
                     );
                     setBlocks((prev) =>
                       prev.map((p) =>
@@ -196,6 +279,7 @@ function BlockItem(props: {
   title: string;
   top: number;
   height: number;
+  onClick: () => void;
   onDrag: (deltaY: number) => void;
   onDragEnd: () => void;
   onResize: (deltaY: number) => void;
@@ -234,6 +318,7 @@ function BlockItem(props: {
     <div
       className="absolute left-0 right-2 rounded border bg-blue-100 shadow"
       style={{ top, height }}
+      onClick={props.onClick}
     >
       <div
         className="cursor-grab select-none px-2 py-1 text-xs font-medium"

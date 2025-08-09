@@ -26,3 +26,31 @@ body {
     "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
+
+/* Scrollbar: show thumb only, transparent track */
+.scrollbar-no-track {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(63, 52, 52, 0.6) transparent;
+}
+.scrollbar-no-track::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-no-track::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-no-track::-webkit-scrollbar-thumb {
+  background-color: rgba(160, 160, 160, 0.6);
+  border-radius: 8px;
+  border: 2px solid transparent; /* creates a gap to avoid full-height look */
+  background-clip: content-box;
+}
+.scrollbar-no-track::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
+.scrollbar-no-track::-webkit-scrollbar-corner {
+  background: transparent;
+}

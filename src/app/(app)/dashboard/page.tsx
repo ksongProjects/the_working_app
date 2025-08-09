@@ -1,6 +1,14 @@
 import dynamic from "next/dynamic";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth/config";
+import { SelectionProvider } from "@/components/Selection";
+import DynamicEditor from "@/components/DynamicEditor";
+import CalendarPanel from "@/components/CalendarPanel";
+import SchedulerWithControls from "@/components/SchedulerWithControls";
+import DashboardLayout from "@/components/DashboardLayout";
+import LayoutSwitcher from "@/components/LayoutSwitcher";
+import ZoneEditor from "@/components/ZoneEditor";
+import ZoneEditorDnD from "@/components/ZoneEditorDnD";
 
 const AddIssuesClient = dynamic(() => import("../today/AddIssuesClient"));
 const TodayListClient = dynamic(() => import("../today/TodayListClient"));
@@ -40,25 +48,31 @@ export default async function DashboardPage() {
     getTodayTotals(userId),
   ]);
   const dateISO = new Date().toISOString().slice(0, 10);
+  // Read layout settings
+  const settings = await prisma.settings.findUnique({ where: { userId } });
+  const layout = (settings?.dashboardLayout as any) || "threeColumn";
+  const zones = (settings?.dashboardZones as any) || {};
+
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Dashboard</h1>
-        <div className="text-sm opacity-80">
-          Today total: {totals.hours}h {totals.minutes}m
+    <SelectionProvider>
+      <div className="mx-auto max-w-[1400px] p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="text-lg font-semibold">Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <LayoutSwitcher initial={layout} />
+            <ZoneEditorDnD layout={layout} initialZones={zones} />
+            <div className="text-xs opacity-80">
+              Today total: {totals.hours}h {totals.minutes}m
+            </div>
+          </div>
         </div>
+        <DashboardLayout
+          layout={layout}
+          zones={zones}
+          dateISO={dateISO}
+          todayIssues={issues}
+        />
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div>
-          <div className="mb-2 text-sm font-medium">Jira Today</div>
-          <AddIssuesClient />
-          <TodayListClient initial={issues} />
-        </div>
-        <div>
-          <div className="mb-2 text-sm font-medium">Timeline</div>
-          <TimelineClient dateISO={dateISO} />
-        </div>
-      </div>
-    </div>
+    </SelectionProvider>
   );
 }

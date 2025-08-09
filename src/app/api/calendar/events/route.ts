@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth/config';
 import { prisma } from '@/lib/prisma';
-import { listGoogleEventsForDay, listGoogleEventsBetween } from '@/server/google/calendar';
-import { listOutlookEventsForDay, listOutlookEventsBetween } from '@/server/microsoft/calendar';
+import { listGoogleEventsForDay, listGoogleEventsBetween, updateGoogleEvent, deleteGoogleEvent, createGoogleEvent } from '@/server/google/calendar';
+import { listOutlookEventsForDay, listOutlookEventsBetween, updateOutlookEvent, deleteOutlookEvent, createOutlookEvent } from '@/server/microsoft/calendar';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -85,6 +85,72 @@ export async function GET(request: Request) {
     ).catch(() => []),
   ]);
   return NextResponse.json({ google: g, microsoft: m });
+}
+
+export async function POST(request: Request) {
+  const session = await auth();
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const provider = body?.provider as 'google' | 'microsoft' | undefined;
+  const title = body?.title as string | undefined;
+  const start = body?.start as string | undefined;
+  const end = body?.end as string | undefined;
+  if (!provider || !title || !start || !end) return NextResponse.json({ error: 'missing params' }, { status: 400 });
+  try {
+    if (provider === 'google') {
+      const res = await createGoogleEvent({ userId, title, startISO: start, endISO: end });
+      return NextResponse.json({ id: res.id });
+    } else {
+      const res = await createOutlookEvent({ userId, title, startISO: start, endISO: end });
+      return NextResponse.json({ id: res.id });
+    }
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  const session = await auth();
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const provider = body?.provider as 'google' | 'microsoft' | undefined;
+  const id = body?.id as string | undefined;
+  const title = body?.title as string | undefined;
+  const start = body?.start as string | undefined;
+  const end = body?.end as string | undefined;
+  if (!provider || !id) return NextResponse.json({ error: 'missing params' }, { status: 400 });
+  try {
+    if (provider === 'google') {
+      await updateGoogleEvent({ userId, eventId: id, title, startISO: start, endISO: end });
+    } else {
+      await updateOutlookEvent({ userId, eventId: id, title, startISO: start, endISO: end });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await auth();
+  const userId = (session as { user?: { id?: string } } | null)?.user?.id;
+  if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const body = await request.json().catch(() => ({}));
+  const provider = body?.provider as 'google' | 'microsoft' | undefined;
+  const id = body?.id as string | undefined;
+  if (!provider || !id) return NextResponse.json({ error: 'missing params' }, { status: 400 });
+  try {
+    if (provider === 'google') {
+      await deleteGoogleEvent({ userId, eventId: id });
+    } else {
+      await deleteOutlookEvent({ userId, eventId: id });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'failed' }, { status: 500 });
+  }
 }
 
 

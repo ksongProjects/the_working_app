@@ -8,8 +8,27 @@ export async function GET(request: Request) {
   if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const url = new URL(request.url);
-  const sourceType = String(url.searchParams.get('sourceType') || 'custom');
+  const sourceType = url.searchParams.get('sourceType');
   const sourceId = url.searchParams.get('sourceId');
+  const totalsOnly = url.searchParams.get('totals') === '1' || url.searchParams.get('totals') === 'true';
+
+  if (totalsOnly) {
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setUTCHours(23, 59, 59, 999);
+    const entries = await prisma.timeEntry.findMany({
+      where: { userId, startedAt: { gte: start, lte: end } },
+      select: { startedAt: true, endedAt: true },
+    });
+    let ms = 0;
+    const now = new Date();
+    for (const e of entries) {
+      ms += Math.max(0, (e.endedAt ?? now).getTime() - e.startedAt.getTime());
+    }
+    const minutes = Math.round(ms / 60000);
+    return NextResponse.json({ minutes });
+  }
 
   if (!sourceId) return NextResponse.json({ error: 'missing-sourceId' }, { status: 400 });
 

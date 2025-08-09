@@ -38,15 +38,9 @@ export default function NavMenuButton() {
           </Link>
           <Link
             className="block rounded px-2 py-1 hover:bg-neutral-100"
-            href="/today"
+            href="/dashboard"
           >
-            Today
-          </Link>
-          <Link
-            className="block rounded px-2 py-1 hover:bg-neutral-100"
-            href="/schedule"
-          >
-            Schedule
+            Dashboard
           </Link>
           <Link
             className="block rounded px-2 py-1 hover:bg-neutral-100"

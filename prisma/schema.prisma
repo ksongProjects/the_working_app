@@ -162,4 +162,13 @@ model Settings {
   // Jira selections
   jiraSelectedProjectKeys       String[]  @default([])
   jiraSelectedDashboardIds      String[]  @default([])
+  // Dashboard layout preferences
+  dashboardLayout               DashboardLayout?
+  dashboardZones                Json?
+}
+
+enum DashboardLayout {
+  threeColumn
+  twoByTwo
+  split
 }

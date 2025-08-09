@@ -76,6 +76,13 @@ export const authConfig: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: 'database' },
   providers: configuredProviders,
+  callbacks: {
+    async session({ session, user }) {
+      // Ensure user.id is available on the session for server components
+      if (session.user) (session.user as any).id = user?.id;
+      return session;
+    },
+  },
   events: {
     async signIn({ user, account }: { user: User; account?: Account | null }) {
       if (!account || !user?.id) return;
