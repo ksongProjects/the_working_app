@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSelection } from "./Selection";
 import dynamic from "next/dynamic";
 const CalendarListDnD = dynamic(() => import("./CalendarListDnD"), {
@@ -79,56 +80,56 @@ export default function CalendarPanel() {
     return "none"; // special to avoid fetch
   }, [showGoogle, showMicrosoft]);
 
+  const eventsQuery = useQuery({
+    queryKey: ["calendar-events", { dateISO, providerParam }],
+    queryFn: async () => {
+      if (providerParam === "none") return { google: [], microsoft: [] };
+      const url = new URL("/api/calendar/events", window.location.origin);
+      url.searchParams.set("date", dateISO);
+      if (providerParam) url.searchParams.set("provider", providerParam);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      if (!res.ok) throw new Error("failed");
+      return (await res.json()) as {
+        items?: unknown[];
+        google?: unknown[];
+        microsoft?: unknown[];
+      };
+    },
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
-    if (providerParam === "none") {
-      setGoogle([]);
-      setMicrosoft([]);
-      return;
-    }
-    (async () => {
-      setLoading(true);
-      try {
-        const url = new URL("/api/calendar/events", window.location.origin);
-        url.searchParams.set("date", dateISO);
-        if (providerParam) url.searchParams.set("provider", providerParam);
-        const res = await fetch(url.toString(), { cache: "no-store" });
-        if (res.ok) {
-          const data = (await res.json()) as {
-            items?: unknown[];
-            google?: unknown[];
-            microsoft?: unknown[];
-          };
-          type Raw = {
-            id: string;
-            subject?: string;
-            summary?: string;
-            start?: { dateTime?: string; date?: string };
-            end?: { dateTime?: string; date?: string };
-          };
-          const g = (data.google || data.items || []) as Raw[];
-          const m = (data.microsoft || []) as Raw[];
-          setGoogle(
-            g.map((e) => ({
-              id: e.id,
-              title: e.summary ?? e.subject ?? "(no title)",
-              start: e.start?.dateTime ?? e.start?.date,
-              end: e.end?.dateTime ?? e.end?.date,
-            }))
-          );
-          setMicrosoft(
-            m.map((e) => ({
-              id: e.id,
-              title: e.subject ?? e.summary ?? "(no title)",
-              start: e.start?.dateTime,
-              end: e.end?.dateTime,
-            }))
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [dateISO, providerParam]);
+    const data = eventsQuery.data as
+      | { items?: unknown[]; google?: unknown[]; microsoft?: unknown[] }
+      | undefined;
+    setLoading(eventsQuery.isLoading);
+    if (!data) return;
+    type Raw = {
+      id: string;
+      subject?: string;
+      summary?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+    };
+    const g = ((data.google || data.items || []) as unknown as Raw[]) || [];
+    const m = ((data.microsoft || []) as unknown as Raw[]) || [];
+    setGoogle(
+      g.map((e) => ({
+        id: e.id,
+        title: e.summary ?? e.subject ?? "(no title)",
+        start: e.start?.dateTime ?? e.start?.date,
+        end: e.end?.dateTime ?? e.end?.date,
+      }))
+    );
+    setMicrosoft(
+      m.map((e) => ({
+        id: e.id,
+        title: e.subject ?? e.summary ?? "(no title)",
+        start: e.start?.dateTime,
+        end: e.end?.dateTime,
+      }))
+    );
+  }, [eventsQuery.data, eventsQuery.isLoading]);
 
   const [view, setView] = useState<"list" | "month">("list");
 

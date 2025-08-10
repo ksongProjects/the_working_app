@@ -26,7 +26,6 @@ export default function WorkdayControls({
   const [loading, setLoading] = useState(true);
   const [startMin, setStartMin] = useState(9 * 60);
   const [endMin, setEndMin] = useState(17 * 60);
-  const [saving, setSaving] = useState(false);
 
   const startStr = useMemo(() => toHHMM(startMin), [startMin]);
   const endStr = useMemo(() => toHHMM(endMin), [endMin]);
@@ -49,26 +48,7 @@ export default function WorkdayControls({
     })();
   }, []);
 
-  const save = useCallback(async () => {
-    setSaving(true);
-    try {
-      // Store as ISO on today's date in UTC for consistency
-      const todayISO = new Date().toISOString().slice(0, 10);
-      const startISO = new Date(`${todayISO}T${startStr}:00Z`).toISOString();
-      const endISO = new Date(`${todayISO}T${endStr}:00Z`).toISOString();
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workdayStart: startISO, workdayEnd: endISO }),
-      });
-      if (!res.ok) throw new Error("Save failed");
-      toast.success("Workday saved");
-    } catch (e) {
-      toast.error("Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  }, [startStr, endStr]);
+  // Save is now managed on the Settings page
 
   return (
     <div className="space-y-2">
@@ -97,13 +77,6 @@ export default function WorkdayControls({
             className="rounded border px-2 py-1"
           />
         </label>
-        <button
-          onClick={save}
-          className="rounded border px-2 py-1 text-xs disabled:opacity-50"
-          disabled={saving}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
       </div>
       {/* Render child with current range */}
       {children(startMin, endMin)}

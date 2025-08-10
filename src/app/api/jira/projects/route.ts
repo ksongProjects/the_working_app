@@ -11,6 +11,10 @@ export async function GET() {
     return NextResponse.json({ items });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
+    // If the error is due to missing Atlassian account, surface 401 to clients
+    if (typeof message === 'string' && message.toLowerCase().includes('no atlassian')) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -30,12 +30,12 @@ export default async function RootLayout({
   const session = await auth();
   const isAuthed = !!session;
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh flex flex-col`}
       >
         <ClientProviders>
-          <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-background/90 backdrop-blur px-4 py-2 text-sm">
+          <header className="sticky top-0 z-40 shrink-0 flex items-center justify-between border-b bg-background/90 backdrop-blur px-4 py-2 text-sm">
             <Link href="/" className="font-semibold">
               myWorkDay
             </Link>
@@ -49,7 +49,7 @@ export default async function RootLayout({
               {isAuthed && <SignOutButton />}
             </div>
           </header>
-          <main className="min-h-[calc(100vh-41px)]">{children}</main>
+          <main className="flex-1 overflow-auto">{children}</main>
         </ClientProviders>
       </body>
     </html>

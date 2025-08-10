@@ -12,7 +12,7 @@ export default function ConnectButton({
   callbackConnected: string; // e.g., 'google'
 }) {
   async function onClick() {
-    const callbackUrl = `/settings/connections?connected=${encodeURIComponent(
+    const callbackUrl = `/settings?connected=${encodeURIComponent(
       callbackConnected
     )}`;
     await signIn(provider, { callbackUrl, redirect: true });
@@ -24,6 +24,3 @@ export default function ConnectButton({
     </button>
   );
 }
-
-
-

@@ -64,7 +64,9 @@ const configuredProviders = [
           clientSecret: process.env.ATLASSIAN_CLIENT_SECRET as string,
           authorization: {
             params: {
-              scope: 'offline_access read:jira-user read:jira-work write:jira-work read:me',
+              scope: 'offline_access read:jira read:jira-user read:jira-work write:jira-work read:me',
+              prompt: 'consent',
+              audience: 'api.atlassian.com',
             },
           },
         }),

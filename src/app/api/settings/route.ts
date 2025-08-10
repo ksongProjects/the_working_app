@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const userId = (session as { user?: { id?: string } } | null)?.user?.id;
   if (!userId) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   const body = await request.json();
-  const { autoPushWorklog, defaultWorklogCommentTemplate, timezone, workdayStart, workdayEnd, googleSyncIntervalMinutes, microsoftSyncIntervalMinutes, atlassianSyncIntervalMinutes, googleMonthsBefore, googleMonthsAfter, microsoftMonthsBefore, microsoftMonthsAfter, jiraSelectedProjectKeys, jiraSelectedDashboardIds, dashboardLayout, dashboardZones } = body as {
+  const { autoPushWorklog, defaultWorklogCommentTemplate, timezone, workdayStart, workdayEnd, googleSyncIntervalMinutes, microsoftSyncIntervalMinutes, atlassianSyncIntervalMinutes, googleMonthsBefore, googleMonthsAfter, microsoftMonthsBefore, microsoftMonthsAfter, jiraSelectedProjectKeys, jiraSelectedDashboardIds, dashboardLayout, dashboardZones, theme } = body as {
     autoPushWorklog?: boolean;
     defaultWorklogCommentTemplate?: string | null;
     timezone?: string | null;
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     jiraSelectedDashboardIds?: string[] | null;
     dashboardLayout?: 'threeColumn' | 'twoByTwo' | 'split' | null;
     dashboardZones?: unknown;
+    theme?: 'light' | 'dark' | 'system' | null;
   };
   const data: Record<string, unknown> = {};
   if (typeof autoPushWorklog === 'boolean') data.autoPushWorklog = autoPushWorklog;
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
   if (typeof jiraSelectedDashboardIds !== 'undefined') data.jiraSelectedDashboardIds = jiraSelectedDashboardIds;
   if (typeof dashboardLayout !== 'undefined') data.dashboardLayout = dashboardLayout as 'threeColumn' | 'twoByTwo' | 'split' | null;
   if (typeof dashboardZones !== 'undefined') data.dashboardZones = dashboardZones as unknown;
+  if (typeof theme !== 'undefined') data.theme = theme as 'light' | 'dark' | 'system' | null;
   const updated = await prisma.settings.upsert({
     where: { userId },
     create: { userId, ...data },

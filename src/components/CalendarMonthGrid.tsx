@@ -8,6 +8,7 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
+import EventCreateModal from "./EventCreateModal";
 
 type Provider = "google" | "microsoft";
 type GridEvent = {
@@ -24,6 +25,8 @@ export default function CalendarMonthGrid() {
   const [month, setMonth] = useState(today.getUTCMonth()); // 0-based
   const [events, setEvents] = useState<Record<string, GridEvent[]>>({});
   const [defaultProvider, setDefaultProvider] = useState<Provider>("google");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createDayISO, setCreateDayISO] = useState<string | null>(null);
 
   const firstDay = useMemo(
     () => new Date(Date.UTC(year, month, 1)),
@@ -104,31 +107,9 @@ export default function CalendarMonthGrid() {
     })();
   }, [year, month]);
 
-  async function createEvent(dayISO: string) {
-    const title = prompt("Event title?");
-    if (!title) return;
-    const startISO = dayISO + "T09:00:00Z";
-    const endISO = dayISO + "T10:00:00Z";
-    const provider: Provider = defaultProvider;
-    const res = await fetch("/api/calendar/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider, title, start: startISO, end: endISO }),
-    });
-    if (res.ok) {
-      setEvents((prev) => {
-        const next = { ...prev };
-        if (!next[dayISO]) next[dayISO] = [];
-        next[dayISO].push({
-          id: Math.random().toString(36).slice(2),
-          title,
-          provider,
-          start: startISO,
-          end: endISO,
-        });
-        return next;
-      });
-    }
+  function openCreate(dayISO: string) {
+    setCreateDayISO(dayISO);
+    setCreateOpen(true);
   }
 
   function getTimeParts(iso?: string): { hh: number; mm: number } | null {
@@ -209,7 +190,7 @@ export default function CalendarMonthGrid() {
       <button
         ref={setNodeRef}
         disabled={!iso}
-        onClick={() => iso && createEvent(iso)}
+        onClick={() => iso && openCreate(iso)}
         className={`min-h-[90px] bg-background p-2 text-left text-xs ${
           !iso ? "opacity-40" : "hover:bg-black/5"
         }`}
@@ -335,6 +316,30 @@ export default function CalendarMonthGrid() {
           ))}
         </div>
       </DndContext>
+      <EventCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        initialDateISO={
+          createDayISO ||
+          new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
+        }
+        initialProvider={defaultProvider}
+        onCreated={(ev) => {
+          setEvents((prev) => {
+            const day = ev.start.slice(0, 10);
+            const next = { ...prev } as Record<string, GridEvent[]>;
+            if (!next[day]) next[day] = [];
+            next[day].push({
+              id: ev.id,
+              title: ev.title,
+              provider: ev.provider as Provider,
+              start: ev.start,
+              end: ev.end,
+            });
+            return next;
+          });
+        }}
+      />
     </div>
   );
 }

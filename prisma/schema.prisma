@@ -167,6 +167,8 @@ model Settings {
   // Dashboard layout preferences
   dashboardLayout               DashboardLayout?
   dashboardZones                Json?
+  // Theme preference
+  theme                         ThemePreference? @default(system)
 }
 
 enum DashboardLayout {
@@ -179,6 +181,12 @@ enum TodayKind {
   calendar
   schedule
   jira
+}
+
+enum ThemePreference {
+  light
+  dark
+  system
 }
 
 model TodayEntry {
